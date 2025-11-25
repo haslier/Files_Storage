@@ -1,0 +1,275 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f6f6f6;
+    color: #333;
+}
+
+/* Header */
+.header {
+    background-color: #ffffff;
+    padding: 10px 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.search-bar {
+    flex: 1;
+    margin: 0 20px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.header-icons {
+    display: flex;
+    align-items: center;
+}
+
+.header-icons .icon {
+    margin-left: 15px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+/* Sidebar */
+.sidebar {
+    background-color: #ffffff;
+    width: 200px;
+    height: calc(100vh - 60px);
+    border-right: 1px solid #ddd;
+    padding: 20px 0;
+    position: fixed;
+    top: 60px;
+    left: 0;
+}
+
+.sidebar-item {
+    padding: 10px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+
+
+.sidebar-item:hover {
+    background-color: #f0f0f0;
+}
+
+.sidebar-icon {
+    margin-right: 10px;
+    font-size: 18px;
+}
+
+/* Main Content */
+.main {
+    margin-left: 200px;
+    padding: 20px;
+}
+
+.upload-btn {
+    background-color: #0078d4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.upload-btn:hover {
+    background-color: #005a9e;
+}
+
+h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.files-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border: 1px solid #ddd;
+}
+
+.files-table th, .files-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.files-table th {
+    background-color: #f0f0f0;
+}
+
+
+/* ======================================================= */
+/* DARK MODE STYLES */
+/* ======================================================= */
+
+/* Nút Dark Mode trong Header */
+.header-icons .icon#darkModeToggle {
+    font-size: 20px;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+/* Ẩn icon mặc định khi ở Dark Mode */
+body.dark-mode .header-icons .icon#darkModeToggle {
+    content: "🌙"; /* Dùng icon mặt trăng cho Dark Mode */
+    /* Bạn có thể dùng JS để thay đổi nội dung, xem phần JS bên dưới */
+}
+
+
+/* 1. Thiết lập màu nền & chữ tổng quát */
+body.dark-mode {
+    background-color: #1e1e1e; /* Nền tối */
+    color: #e0e0e0; /* Chữ sáng */
+}
+
+/* 2. Header, Sidebar, và Main Content */
+body.dark-mode .header,
+body.dark-mode .sidebar,
+body.dark-mode .files-table {
+    background-color: #252526; /* Nền tối hơn */
+    border-color: #383838; /* Viền tối */
+}
+
+body.dark-mode .files-table th {
+    background-color: #383838; /* Nền đầu bảng tối */
+}
+
+body.dark-mode .files-table th,
+body.dark-mode .files-table td {
+    border-bottom: 1px solid #383838;
+}
+
+body.dark-mode .files-table tbody tr:hover {
+    background-color: #333333; /* Hover tối */
+}
+
+/* 3. Search Bar */
+body.dark-mode .search-bar input {
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+    border-color: #555;
+}
+
+/* 4. Sidebar Nav (Item) */
+body.dark-mode .sidebar-item {
+    color: #ccc;
+}
+
+body.dark-mode .sidebar-item:hover {
+    background-color: #3c3c3c; /* Hover tối */
+}
+
+
+
+/* 5. Nút Upload */
+body.dark-mode .upload-btn {
+    background-color: #5397ff; /* Màu xanh nổi bật */
+    color: #1e1e1e;
+}
+
+body.dark-mode .upload-btn:hover {
+    background-color: #367cff;
+}
+
+/* ======================================================= */
+/* STYLES CHO USER MENU POPUP */
+/* ======================================================= */
+
+.user-menu-popup {
+    position: absolute;
+    top: 55px; /* Điều chỉnh để nằm dưới Header */
+    right: 15px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 200px;
+    padding: 15px;
+    z-index: 20; /* Đảm bảo nằm trên các phần tử khác */
+    
+    /* Ẩn ban đầu */
+    display: none;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s, transform 0.2s, display 0.2s;
+}
+
+.user-menu-popup.visible {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.user-info-display {
+    margin-bottom: 10px;
+}
+
+.user-email {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Cắt bớt nếu quá dài */
+}
+
+.user-username {
+    font-size: 0.9em;
+    color: #888;
+}
+
+.user-menu-popup hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 10px 0;
+}
+
+.logout-btn {
+    width: 100%;
+    background-color: #dc3545; /* Màu đỏ */
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.logout-btn:hover {
+    background-color: #c82333;
+}
+
+/* Dark Mode CSS cho Popup */
+body.dark-mode .user-menu-popup {
+    background-color: #252526;
+    border-color: #383838;
+}
+
+body.dark-mode .user-email {
+    color: #f0f0f0;
+}
+
+body.dark-mode .user-username {
+    color: #aaa;
+}

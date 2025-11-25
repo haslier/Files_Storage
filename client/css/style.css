@@ -1,0 +1,179 @@
+/* Thiết lập cơ bản */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Comic Sans MS', cursive; /* Giữ nguyên font bạn chọn */
+}
+
+/* Định dạng Background và hiệu ứng mờ */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* 1. Đường dẫn ảnh nền (Đã cập nhật tên file) */
+    background: url('../assets/background_login.png') no-repeat center center fixed;
+    background-size: cover; 
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* 2. KHÔI PHỤC: Lớp phủ (Overlay) VÀ hiệu ứng làm mờ */
+    backdrop-filter: blur(0px); 
+    z-index: 1; 
+}
+
+/* Container cho Form */
+.login-container {
+    position: relative; /* Quan trọng để form nằm trên lớp phủ blur */
+    z-index: 2; 
+}
+
+/* ================================================= */
+/* 3. Dùng class chung cho cả Login và Register Form  */
+/* ================================================= */
+.auth-form {
+    background: linear-gradient(135deg, #8A2BE2, #00CED1); /* Gradient màu tím-xanh */
+    padding: 50px 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    width: 350px;
+    max-width: 90vw;
+    transition: opacity 0.3s, transform 0.3s; /* Thêm chuyển động mượt */
+}
+
+/* 4. Class để ẩn form (Dùng trong JavaScript) */
+.hidden {
+    display: none; 
+}
+
+/* Tiêu đề LOG IN/REGISTER */
+.form-title {
+    font-size: 3em;
+    color: white; /* Màu trắng cho chữ */
+    margin-bottom: 30px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Nhóm Input */
+.input-group {
+    margin-bottom: 25px;
+}
+
+/* Input fields (Áp dụng cho mọi input trong .auth-form) */
+.auth-form input[type="text"],
+.auth-form input[type="password"],
+.auth-form input[type="email"] { /* Thêm email cho form đăng ký */
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1em;
+    background-color: white; /* Nền trắng cho input */
+    color: #333;
+    outline: none;
+}
+
+/* 5. Nút Login/Register (Đã đổi tên class) */
+.auth-button {
+    background-color: white; /* Nền trắng cho nút */
+    color: #8A2BE2; /* Màu chữ tím */
+    border: none;
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-size: 1.1em;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: background-color 0.3s;
+}
+
+.auth-button:hover {
+    background-color: #eee;
+}
+
+/* 6. Link chuyển đổi (Đã đổi tên class) */
+.switch-link {
+    display: block;
+    margin-top: 25px;
+    color: white; 
+    text-decoration: none; 
+    font-size: 1em;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.switch-link:hover {
+    color: #ddd; 
+}
+
+/* ======================================================= */
+/* STYLES CHO POPUP KIỂM TRA MẬT KHẨU */
+/* ======================================================= */
+.password-popup {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    text-align: left;
+    color: #333;
+    font-size: 0.9em;
+    /* Tùy chọn: Ẩn ban đầu */
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none; /* Không chặn click */
+}
+
+.password-popup.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.password-popup ul {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 5px;
+}
+
+.password-popup ul li {
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+/* Màu cho trạng thái CHƯA ĐẠT (Tối/Mờ) */
+.password-popup ul li.invalid {
+    color: #888;
+}
+
+/* Màu cho trạng thái ĐÃ ĐẠT (Sáng/Xanh) */
+.password-popup ul li.valid {
+    color: #28a745; /* Màu xanh lá cây */
+    font-weight: 500;
+}
+
+.password-popup ul li::before {
+    content: "✖"; /* Icon X cho Invalid */
+    margin-right: 8px;
+    font-size: 1.1em;
+}
+
+.password-popup ul li.valid::before {
+    content: "✓"; /* Icon V cho Valid */
+    color: #28a745;
+}
+
+

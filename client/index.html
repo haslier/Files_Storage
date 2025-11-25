@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập/Đăng ký | Web Lưu trữ</title>
+    <!-- Liên kết với file CSS -->
+    <link rel="stylesheet" href="css/style.css"> 
+</head>
+<body>
+    <!-- Container chính cho toàn bộ trang -->
+    <div class="login-container">
+        
+        <!-- ========================== FORM ĐĂNG NHẬP (LOG IN) ========================== -->
+        <form class="auth-form" id="loginForm">
+            <h1 class="form-title">LOG IN</h1>
+            
+            <div class="input-group">
+                <input type="text" id="loginUsername" name="username" placeholder="Username" required>
+            </div>
+            
+            <div class="input-group">
+                <input type="password" id="loginPassword" name="password" placeholder="Password" required>
+            </div>
+            
+            <button type="submit" class="auth-button">Login</button>
+            
+            <!-- Link chuyển sang Đăng ký -->
+            <a href="#" class="switch-link" data-target="register">Register</a>
+        </form>
+
+        <!-- ========================== FORM ĐĂNG KÝ (REGISTER) ========================== -->
+        <!-- Ban đầu, form này sẽ bị ẩn (thêm class 'hidden' trong CSS) -->
+        <form class="auth-form hidden" id="registerForm">
+            <h1 class="form-title">REGISTER</h1>
+            
+            <div class="input-group">
+                <input type="text" id="registerUsername" name="username" placeholder="Username" required>
+            </div>
+
+            <div class="input-group">
+                <input type="email" id="registerEmail" name="email" placeholder="Email" required>
+            </div>
+            
+            <div class="input-group">
+                <input type="password" id="registerPassword" name="password" placeholder="Password" required>
+            </div>
+            <!-- THÊM POPUP KIỂM TRA ĐỘ MẠNH Ở ĐÂY -->
+            <div class="password-popup" id="passwordCheckPopup">
+            <p>Conditions</p>
+            <ul>
+                <li id="checkLength" class="invalid">More than 8 characters</li>
+                <li id="checkUpper" class="invalid">At least one uppercase letter</li>
+                <li id="checkLower" class="invalid">At least 1 lowercase letter</li>
+                <li id="checkNumber" class="invalid">At least 1 number</li>
+                <li id="checkSpecial" class="invalid">At least 1 special character</li>
+            </ul>
+            </div>
+
+
+            <div class="input-group">
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required>
+            </div>
+            
+            <button type="submit" class="auth-button">Register</button>
+            
+            <!-- Link chuyển sang Đăng nhập -->
+            <a href="#" class="switch-link" data-target="login">Log In</a>
+        </form>
+
+    </div>
+
+    <!-- Liên kết với file JS để xử lý form và chuyển đổi -->
+    <script src="js/main.js"></script> 
+</body>
+</html>
+
+
