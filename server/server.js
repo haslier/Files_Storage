@@ -1,79 +1,58 @@
-// server/server.js
-
+require('dotenv').config();
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
-const rateLimit = require('express-rate-limit');
 const path = require('path');
-const { connectDB } = require('./config/db'); 
+const connectDB = require('./config/db');
 
-// 1. TẢI CÁC ROUTE VÀ CONTROLLER CẦN THIẾT
-const { loginUser, registerUser } = require('./controllers/authController'); // Lấy hàm Controller trực tiếp
-const authRoutes = require('./routes/authRoutes'); // Route chỉ chứa /register
-const fileRoutes = require('./routes/fileRoutes'); 
+const app = express();
 
-// =======================================================
-// 2. CONFIG VÀ KHỞI TẠO
-// =======================================================
-dotenv.config(); // Load .env
-const app = express(); // KHỞI TẠO APP Ở ĐÂY
+// Connect to MongoDB
+connectDB();
 
-// =======================================================
-// 3. MIDDLEWARE CHUNG & KẾT NỐI DB
-// =======================================================
-connectDB(); 
-app.use(cors()); 
-app.use(express.json()); 
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// Serve static files
+app.use(express.static(path.join(__dirname, '../client')));
 
-// =======================================================
-// 4. BẢO MẬT: RATE LIMITER
-// =======================================================
-const loginLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, 
-    max: 5, 
-    message: JSON.stringify({ message: 'Too many failed login attempts. Please try again in 5 minutes.' }),
+// API Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/files', require('./routes/fileRoutes'));
+
+// Test route
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        success: true,
+        message: 'API is working!', 
+        timestamp: new Date() 
+    });
 });
 
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 100, 
-    message: JSON.stringify({ message: 'You have exceeded the number of allowed requests. Please try again in 15 minutes.' }),
+// Serve frontend
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dashboard.html'));
+});
 
-// =======================================================
-// 5. ROUTES
-// =======================================================
+// Error handling
+app.use((err, req, res, next) => {
+    console.error('Server error:', err);
+    res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
 
-// A. ROUTE LOGIN (Áp dụng Limiter và Controller riêng)
-// Tạo một Router nhỏ chỉ cho route Login (chỉ cần 'post' vì đường dẫn đã được chỉ rõ)
-const loginRoute = express.Router();
-loginRoute.post('/', loginUser); // Chỉ cần '/' vì nó sẽ được áp dụng tại /api/auth/login
-
-app.use('/api/auth/login', loginLimiter, loginRoute); 
-
-
-// B. ROUTE REGISTER (Áp dụng Limiter chung và AuthRoute)
-app.use('/api/auth', authLimiter, authRoutes); // AuthRoutes chỉ chứa route /register
-
-
-// C. FILE ROUTES
-app.use('/api/files', fileRoutes);
-
-
-// =======================================================
-// 6. PHỤC VỤ FILE TĨNH (FRONTEND)
-// =======================================================
-app.use(express.static(path.join(__dirname, '..', 'client')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'client', 'index.html')));
-
-
-// =======================================================
-// 7. KHỞI ĐỘNG SERVER
-// =======================================================
-const PORT = process.env.PORT || 5000;
-
+// Start server
+const PORT = process.env.PORT || 5500;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📂 API: http://localhost:${PORT}/api`);
+    console.log(`🌐 Frontend: http://localhost:${PORT}`);
 });

@@ -1,37 +1,56 @@
-// server/models/File.js
-
 const mongoose = require('mongoose');
 
-const FileSchema = new mongoose.Schema({
-    fileName: {
+const fileSchema = new mongoose.Schema({
+    filename: {
         type: String,
         required: true
     },
-    fileSize: {
-        type: Number, // Kích thước tính bằng bytes
+    originalName: {
+        type: String,
         required: true
     },
-    ownerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Tham chiếu đến User Model
+    data: {
+        type: Buffer,
         required: true
     },
-    gridFsId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true // ID tham chiếu đến file vật lý trong GridFS
+    size: {
+        type: Number,
+        required: true
     },
-    uploadDate: {
+    mimeType: {
+        type: String,
+        required: true
+    },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    sharedWith: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    status: {
+        type: String,
+        enum: ['active', 'bin'],
+        default: 'active'
+    },
+    deletedAt: {
+        type: Date,
+        default: null
+    },
+    uploadedAt: {
         type: Date,
         default: Date.now
     },
-    isPublic: {
-        type: Boolean,
-        default: false
-    },
-    shareWith: [{ // Danh sách User ID được chia sẻ
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }]
+    lastModified: {
+        type: Date,
+        default: Date.now
+    }
 });
 
-module.exports = mongoose.model('File', FileSchema);
+// Indexes
+fileSchema.index({ owner: 1, status: 1, uploadedAt: -1 });
+fileSchema.index({ sharedWith: 1, status: 1 });
+
+module.exports = mongoose.model('File', fileSchema);

@@ -1,11 +1,11 @@
-// server/routes/authRoutes.js
-
 const express = require('express');
-const { registerUser } = require('../controllers/authController');
 const router = express.Router();
+const authController = require('../controllers/authController');
 
-// PHẢI CHẮC CHẮN LÀ .post()
-router.post('/register', registerUser); 
+// Register
+router.post('/register', authController.register);
 
+// Login
+router.post('/login', authController.login);
 
 module.exports = router;

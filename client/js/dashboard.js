@@ -1,195 +1,507 @@
-// client/js/dashboard.js
-// Dashboard client-side script
-// - Mục đích: kiểm tra token, hiển thị user info, dark mode, user menu/logout, sidebar navigation.
+// API Config
+const API_URL = 'http://localhost:5500/api';
 
+// Global variables
+let currentView = 'myfiles';
+let currentSubView = null;
+let currentEditingFileId = null;
 
-// =======================
-// I. HÀM TIỆN ÍCH CHUNG
-// =======================
-
-/**
- * Giải mã payload từ JWT (chỉ giải mã phần payload, không verify)
- * @param {string|null} token - JWT token
- * @returns {Object|null} payload JSON hoặc null nếu lỗi
- */
-function parseJwt(token) {
-    try {
-        if (!token) return null;
-        const base64Url = token.split('.')[1];
-        if (!base64Url) return null;
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        console.error("Lỗi giải mã JWT:", e);
-        return null;
-    }
+// Check authentication
+const token = localStorage.getItem('token');
+if (!token) {
+    window.location.href = 'index.html';
 }
 
-/**
- * An toàn: lấy element theo id và log nếu không tìm thấy.
- * @param {string} id
- * @returns {HTMLElement|null}
- */
-function getEl(id) {
-    const el = document.getElementById(id);
-    if (!el) console.warn(`getEl: Không tìm thấy phần tử có id="${id}"`);
-    return el;
+// Utility functions
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-// =======================
-// II. KHỞI TẠO & LẤY ELEMENTS
-// =======================
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// DOM Elements
 document.addEventListener('DOMContentLoaded', () => {
-    // BODY & THEME
-    const body = document.body;
-    const darkModeToggle = getEl('darkModeToggle');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const userIcon = document.getElementById('userIcon');
+    const userMenuPopup = document.getElementById('userMenuPopup');
+    const logoutButton = document.getElementById('logoutButton');
+    const displayEmail = document.getElementById('displayEmail');
+    const displayUsername = document.getElementById('displayUsername');
+    const uploadButton = document.getElementById('uploadButton');
+    const fileInput = document.getElementById('fileInput');
+    const sidebarItems = document.querySelectorAll('.sidebar-item');
+    const filesTableBody = document.getElementById('filesTableBody');
+    const contentTitle = document.getElementById('contentTitle');
+    const sharedTabs = document.getElementById('sharedTabs');
 
-    // USER MENU
-    const userIcon = getEl('userIcon');
-    const userMenuPopup = getEl('userMenuPopup');
-    const logoutButton = getEl('logoutButton');
-    const displayEmail = getEl('displayEmail');
-    const displayUsername = getEl('displayUsername');
+    // Display user info
+    displayEmail.textContent = localStorage.getItem('email') || 'No email';
+    displayUsername.textContent = localStorage.getItem('username') || 'User';
 
-    // SIDEBAR & CONTENT
-    const navItems = document.querySelectorAll('.sidebar-item');
-    const contentTitle = document.querySelector('.main h2');
-    const filesListBody = document.querySelector('.files-table tbody');
-
-    // Lấy token từ localStorage và payload user
-    const token = localStorage.getItem('token');
-    const userPayload = parseJwt(token);
-
-    // =======================
-    // III. LOGIC BẢO MẬT (Token check)
-    // - Nếu không có token hoặc payload không hợp lệ -> chuyển về index.html
-    // =======================
-    if (!token || !userPayload) {
-        // Ghi log nguyên nhân để debug (nếu cần)
-        console.warn('Auth check failed: token missing or invalid payload. Redirecting to login.');
-        window.location.href = 'index.html';
-        return; // dừng khởi tạo tiếp
-    }
-
-    // =======================
-    // IV. THEME / DARK MODE
-    // - Lưu theme vào localStorage
-    // - applyTheme có thể tái sử dụng khi load hoặc đổi
-    // =======================
-    function applyTheme(theme) {
-        if (theme === 'dark') {
-            body.classList.add('dark-mode');
-            if (darkModeToggle) darkModeToggle.textContent = '🌙';
-        } else {
-            body.classList.remove('dark-mode');
-            if (darkModeToggle) darkModeToggle.textContent = '☀️';
-        }
-        localStorage.setItem('theme', theme);
-    }
-
-    // Load theme đã lưu (mặc định 'light')
+    // Dark mode
     const savedTheme = localStorage.getItem('theme') || 'light';
-    applyTheme(savedTheme);
-
-    // Bật/tắt theme khi click
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', () => {
-            const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
-            applyTheme(currentTheme === 'light' ? 'dark' : 'light');
-        });
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        darkModeToggle.textContent = '🌙';
     }
 
-    // =======================
-    // V. USER INFO, MENU & LOGOUT
-    // - Hiển thị email/username từ payload
-    // - Toggle popup, đóng khi click ngoài, logout
-    // =======================
-    // Hiển thị thông tin user (nếu phần tử tồn tại)
-    if (userPayload) {
-        if (displayEmail) displayEmail.textContent = userPayload.email || 'Email không có trong Token';
-        if (displayUsername) displayUsername.textContent = userPayload.username || `ID: ${userPayload.id || 'Không rõ'}`;
-    }
+    darkModeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        darkModeToggle.textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
 
-    // Toggle hiển thị popup menu khi click vào user icon
-    if (userIcon && userMenuPopup) {
-        userIcon.addEventListener('click', (e) => {
-            e.stopPropagation(); // tránh sự kiện bubble đóng popup ngay
-            userMenuPopup.classList.toggle('visible');
-        });
-    }
+    // User menu
+    userIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userMenuPopup.classList.toggle('visible');
+    });
 
-    // Logout: xóa token và redirect về login
-    if (logoutButton) {
-        logoutButton.addEventListener('click', () => {
-            localStorage.removeItem('token');
-            window.location.href = 'index.html';
-        });
-    }
-
-    // Đóng popup khi click ở ngoài
     document.addEventListener('click', (e) => {
-        if (!userMenuPopup) return;
-        const isVisible = userMenuPopup.classList.contains('visible');
-        const clickedInsidePopup = userMenuPopup.contains(e.target);
-        const clickedOnIcon = e.target === userIcon || (userIcon && userIcon.contains && userIcon.contains(e.target));
-        if (isVisible && !clickedInsidePopup && !clickedOnIcon) {
+        if (!userMenuPopup.contains(e.target) && e.target !== userIcon) {
             userMenuPopup.classList.remove('visible');
         }
     });
 
-    // =======================
-    // VI. SIDEBAR NAVIGATION & CONTENT LOADING
-    // - loadContent(type) chịu trách nhiệm render placeholder (và sẽ được mở rộng để fetch API sau)
-    // - SEO: cập nhật title (nếu cần) hoặc heading
-    // =======================
-    /**
-     * Tải nội dung cho page type (ví dụ: 'dashboard', 'myfiles', ...)
-     * Hiện tại: hiển thị placeholder trong bảng files
-     * Sau này: thay innerHTML bằng fetch + render dynamic
-     * @param {string} type
-     */
-    function loadContent(type) {
-        // 1) Reset active state của sidebar
-        navItems.forEach(nav => nav.classList.remove('active'));
+    logoutButton.addEventListener('click', () => {
+        localStorage.clear();
+        window.location.href = 'index.html';
+    });
 
-        // 2) Gán active cho item tương ứng (nếu có)
-        const activeItem = document.querySelector(`.sidebar-item[data-page="${type}"]`);
-        if (activeItem) {
-            activeItem.classList.add('active');
-            if (contentTitle) contentTitle.textContent = activeItem.textContent.trim();
-        } else {
-            if (contentTitle) contentTitle.textContent = type.toUpperCase();
+    // Upload
+    uploadButton.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', uploadFile);
+
+    // Sidebar navigation
+    sidebarItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const view = item.dataset.page;
+            
+            sidebarItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+
+            if (view === 'shared') {
+                sharedTabs.style.display = 'flex';
+                loadContent('shared', 'by-you');
+            } else {
+                sharedTabs.style.display = 'none';
+                loadContent(view);
+            }
+        });
+    });
+
+    // Shared tabs
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const subView = btn.dataset.tab;
+            loadContent('shared', subView);
+        });
+    });
+
+    // Initial load
+    loadContent('myfiles');
+});
+
+// Load content
+async function loadContent(view, subView = null) {
+    currentView = view;
+    currentSubView = subView;
+
+    const contentTitle = document.getElementById('contentTitle');
+    const filesTableBody = document.getElementById('filesTableBody');
+
+    // Update title
+    if (view === 'myfiles') {
+        contentTitle.textContent = 'My Files';
+    } else if (view === 'shared') {
+        contentTitle.textContent = subView === 'by-you' ? 'Shared by You' : 'Shared to You';
+    } else if (view === 'bin') {
+        contentTitle.textContent = 'Bin';
+    }
+
+    // Show loading
+    filesTableBody.innerHTML = `
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 40px;">
+                ⏳ Loading...
+            </td>
+        </tr>
+    `;
+
+    // Fetch files
+    try {
+        let endpoint = '';
+        if (view === 'myfiles') {
+            endpoint = '/files/myfiles';
+        } else if (view === 'shared') {
+            endpoint = subView === 'by-you' ? '/files/shared-by-you' : '/files/shared-to-you';
+        } else if (view === 'bin') {
+            endpoint = '/files/bin';
         }
 
-        // 3) Hiển thị placeholder đang tải
-        if (filesListBody) {
-            filesListBody.innerHTML = `
-                <tr>
-                    <td colspan="4" style="text-align: center;">
-                        Đang tải dữ liệu cho mục: ${String(type).toUpperCase()}...
-                    </td>
-                </tr>
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            displayFiles(data.files, view);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Load content error:', error);
+        filesTableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px; color: red;">
+                    ❌ Error: ${error.message}
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Display files
+function displayFiles(files, view) {
+    const filesTableBody = document.getElementById('filesTableBody');
+    const userId = localStorage.getItem('userId');
+
+    if (!files || files.length === 0) {
+        filesTableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px;">
+                    📁 No files found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    filesTableBody.innerHTML = files.map(file => {
+        const isOwner = file.owner._id === userId || file.owner === userId;
+        let actions = '';
+
+        if (view === 'myfiles') {
+            actions = `
+                <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
+                    ⬇️ Download
+                </button>
+                <button class="action-btn edit-btn" onclick="editFile('${file._id}')">
+                    ✏️ Edit
+                </button>
+                ${isOwner ? `
+                    <button class="action-btn share-btn" onclick="shareFile('${file._id}')">
+                        🔗 Share
+                    </button>
+                    <button class="action-btn delete-btn" onclick="deleteFile('${file._id}', '${file.originalName}')">
+                        🗑️ Delete
+                    </button>
+                ` : ''}
+            `;
+        } else if (view === 'shared') {
+            actions = `
+                <button class="action-btn view-btn" onclick="viewFile('${file._id}')">
+                    👁️ View
+                </button>
+            `;
+        } else if (view === 'bin') {
+            actions = `
+                <button class="action-btn restore-btn" onclick="restoreFile('${file._id}')">
+                    ♻️ Restore
+                </button>
+                <button class="action-btn delete-permanent-btn" onclick="deletePermanently('${file._id}', '${file.originalName}')">
+                    ❌ Delete Forever
+                </button>
             `;
         }
+
+        return `
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>📄</span>
+                        <span>${file.originalName}</span>
+                    </div>
+                </td>
+                <td>${formatDate(file.uploadedAt)}</td>
+                <td>${file.owner?.username || 'Unknown'}</td>
+                <td>
+                    <div class="file-actions">
+                        ${actions}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Upload file
+async function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file!');
+        return;
     }
 
-    // Gắn event listener cho các item sidebar
-    if (navItems && navItems.length) {
-        navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const type = item.dataset.page || 'dashboard';
-                loadContent(type);
-            });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        uploadButton.disabled = true;
+        uploadButton.textContent = '⏳ Uploading...';
+
+        const response = await fetch(`${API_URL}/files/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
         });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ File uploaded successfully!');
+            fileInput.value = '';
+            loadContent('myfiles');
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('❌ Upload failed: ' + error.message);
+    } finally {
+        uploadButton.disabled = false;
+        uploadButton.textContent = '📤 Upload';
     }
+}
 
-    // Load mặc định khi mở trang (dashboard)
-    loadContent('dashboard');
+// Download file
+async function downloadFile(fileId, fileName) {
+    try {
+        const response = await fetch(`${API_URL}/files/download/${fileId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
+        if (!response.ok) throw new Error('Download failed');
 
-});
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        console.log('✅ Downloaded:', fileName);
+
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('❌ Download failed: ' + error.message);
+    }
+}
+
+// Edit file (My Files only)
+async function editFile(fileId) {
+    try {
+        const response = await fetch(`${API_URL}/files/view/${fileId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentEditingFileId = fileId;
+            document.getElementById('fileContentEditor').value = data.file.content;
+            document.getElementById('editModal').classList.add('active');
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Edit file error:', error);
+        alert('❌ Cannot edit file: ' + error.message);
+    }
+}
+
+// View file (Shared only - read-only)
+async function viewFile(fileId) {
+    try {
+        const response = await fetch(`${API_URL}/files/view/${fileId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('File Content (Read-only):\n\n' + data.file.content);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('View file error:', error);
+        alert('❌ Cannot view file: ' + error.message);
+    }
+}
+
+// Save edited file
+async function saveEditedFile() {
+    if (!currentEditingFileId) return;
+
+    const content = document.getElementById('fileContentEditor').value;
+
+    try {
+        const response = await fetch(`${API_URL}/files/save/${currentEditingFileId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ File saved successfully!');
+            closeEditModal();
+            loadContent(currentView, currentSubView);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Save file error:', error);
+        alert('❌ Save failed: ' + error.message);
+    }
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    currentEditingFileId = null;
+}
+
+// Delete file (move to bin)
+async function deleteFile(fileId, fileName) {
+    if (!confirm(`Move "${fileName}" to Bin?`)) return;
+
+    try {
+        const response = await fetch(`${API_URL}/files/${fileId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Moved to Bin!');
+            loadContent(currentView, currentSubView);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('❌ Delete failed: ' + error.message);
+    }
+}
+
+// Restore file from bin
+async function restoreFile(fileId) {
+    try {
+        const response = await fetch(`${API_URL}/files/restore/${fileId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ File restored!');
+            loadContent('bin');
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Restore error:', error);
+        alert('❌ Restore failed: ' + error.message);
+    }
+}
+
+// Delete permanently
+async function deletePermanently(fileId, fileName) {
+    if (!confirm(`DELETE FOREVER "${fileName}"?\n\nThis action CANNOT be undone!`)) return;
+
+    try {
+        const response = await fetch(`${API_URL}/files/permanent/${fileId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Deleted permanently!');
+            loadContent('bin');
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Permanent delete error:', error);
+        alert('❌ Delete failed: ' + error.message);
+    }
+}
+
+// Share file
+async function shareFile(fileId) {
+    const email = prompt('Enter email to share with:');
+    if (!email) return;
+
+    try {
+        const response = await fetch(`${API_URL}/files/share/${fileId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userEmail: email })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`✅ File shared with ${email}!`);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Share error:', error);
+        alert('❌ Share failed: ' + error.message);
+    }
+}

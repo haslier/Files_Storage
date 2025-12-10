@@ -1,35 +1,29 @@
-// server/middleware/authMiddleware.js
-
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Import User model nếu bạn cần lấy thêm thông tin User
 
-const protect = async (req, res, next) => {
-    let token;
-
-    // 1. Kiểm tra Token trong Header Authorization
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        try {
-            // Lấy token từ Header (ví dụ: 'Bearer <token>')
-            token = req.headers.authorization.split(' ')[1];
-
-            // 2. Xác minh Token (dùng JWT_SECRET)
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            
-            // 3. Gắn User ID vào request (cho Controller sử dụng)
-            // Lưu ý: Tùy theo payload của bạn, trường user ID có thể là 'id'
-            req.userId = decoded.id; 
-            
-            // Tùy chọn: Lấy toàn bộ User Object (Nếu cần truy cập email, username,...)
-            // req.user = await User.findById(decoded.id).select('-password'); 
-
-            next(); // Chuyển sang Controller tiếp theo
-        } catch (error) {
-            console.error("Lỗi xác minh token:", error.message);
-            res.status(401).json({ message: 'Không được phép truy cập, Token không hợp lệ hoặc hết hạn' });
+const authMiddleware = (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                message: 'No token provided'
+            });
         }
-    } else if (!token) {
-        res.status(401).json({ message: 'Không được phép truy cập, Không có Token' });
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        req.userId = decoded.userId;
+        next();
+        
+    } catch (error) {
+        console.error('Auth middleware error:', error.message);
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid or expired token'
+        });
     }
 };
 
-module.exports = { protect };
+module.exports = authMiddleware;

@@ -7,56 +7,98 @@
     <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
-        <div class="header-title">Files Storage System</div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search">
+        <div class="header-left">
+            <h1>📁 Files Storage System</h1>
         </div>
-        <div class="header-icons">
-            <span class="icon" id="darkModeToggle">☀️</span>
-            <span class="icon" id="userIcon">👤</span>
+        <div class="header-right">
+            <input type="text" class="search-bar" placeholder="Search files...">
+            <button class="icon-btn" id="darkModeToggle">☀️</button>
+            <button class="icon-btn" id="userIcon">👤</button>
         </div>
     </div>
 
-    <!-- THÊM POPUP USER MENU NGAY ĐÂY -->
-<div class="user-menu-popup" id="userMenuPopup">
-    <!-- Nội dung sẽ được điền bằng JS -->
-    <div class="user-info-display">
-        <p class="user-email" id="displayEmail">loading...</p> 
-        <p class="user-username" id="displayUsername">loading...</p>
+    <!-- User Menu Popup -->
+    <div class="user-menu-popup" id="userMenuPopup">
+        <div class="user-info">
+            <p class="user-email" id="displayEmail">loading...</p>
+            <p class="user-username" id="displayUsername">loading...</p>
+        </div>
+        <hr>
+        <button class="logout-btn" id="logoutButton">🚪 Logout</button>
     </div>
-    <hr>
-    <button class="logout-btn" id="logoutButton">Log Out</button>
-</div>
 
+    <!-- Sidebar -->
     <div class="sidebar">
-        <div class="sidebar-item" data-page="myfiles">
-            <span class="sidebar-icon">📁</span>My Files
+        <div class="sidebar-item active" data-page="myfiles">
+            <span class="sidebar-icon">📁</span>
+            My Files
         </div>
         <div class="sidebar-item" data-page="shared">
-            <span class="sidebar-icon">🔗</span>Shared
+            <span class="sidebar-icon">🔗</span>
+            Shared
         </div>
         <div class="sidebar-item" data-page="bin">
-            <span class="sidebar-icon">🗑️</span>Bin
+            <span class="sidebar-icon">🗑️</span>
+            Bin
         </div>
     </div>
 
-    <div class="main">
-        <button class="upload-btn">Upload</button>
-        <h2>My Files</h2>
-        <table class="files-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Time</th>
-                    <th>Owner</th>
-                    <th>Options</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Files will be added here dynamically if needed -->
-            </tbody>
-        </table>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <input type="file" id="fileInput" style="display: none;">
+            <button class="upload-btn" id="uploadButton">📤 Upload</button>
+        </div>
+
+        <!-- Shared Sub-tabs (hidden by default) -->
+        <div class="shared-tabs" id="sharedTabs" style="display: none;">
+            <button class="tab-btn active" data-tab="by-you">Shared by You</button>
+            <button class="tab-btn" data-tab="to-you">Shared to You</button>
+        </div>
+
+        <!-- Content Title -->
+        <h2 id="contentTitle">My Files</h2>
+
+        <!-- Files Table -->
+        <div class="table-container">
+            <table class="files-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Time</th>
+                        <th>Owner</th>
+                        <th>Options</th>
+                    </tr>
+                </thead>
+                <tbody id="filesTableBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 40px;">
+                            ⏳ Loading...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit File</h3>
+                <button class="close-btn" onclick="closeEditModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="fileContentEditor" rows="15"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveEditedFile()">Save</button>
+            </div>
+        </div>
     </div>
 
     <script src="js/dashboard.js"></script>

@@ -1,34 +1,17 @@
-// server/config/db.js
-
 const mongoose = require('mongoose');
-
-// Khai báo biến gfs (biến toàn cục)
-let gfs; 
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
-        
-        // === KHỞI TẠO GRIDFS BUCKET (QUAN TRỌNG) ===
-        // Lấy db object từ connection
-        const db = conn.connection.db; 
-        
-        // Khởi tạo GridFS Bucket
-        gfs = new mongoose.mongo.GridFSBucket(db, {
-            bucketName: 'uploads' // Đặt tên bucket để lưu trữ file vật lý
+        const conn = await mongoose.connect(process.env.MONGODB_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
         });
-        // ==========================================
 
-    } catch (err) {
-        console.error(`Error: ${err.message}`);
-        process.exit(1); 
+        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error(`❌ MongoDB Connection Error: ${error.message}`);
+        process.exit(1);
     }
 };
 
-// Xuất cả hàm kết nối và hàm lấy gfs
-module.exports = { 
-    connectDB, 
-    // Dùng hàm bọc để gfs chỉ được trả về sau khi đã khởi tạo
-    gfs: () => gfs 
-};
+module.exports = connectDB;

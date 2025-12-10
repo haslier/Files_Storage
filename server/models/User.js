@@ -1,47 +1,49 @@
-// server/models/User.js
-
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
     username: {
         type: String,
-        required: true,
+        required: [true, 'Username is required'],
         unique: true,
-        trim: true
+        trim: true,
+        minlength: 3
     },
     email: {
         type: String,
-        required: true,
+        required: [true, 'Email is required'],
         unique: true,
         lowercase: true,
         trim: true,
-        match: [/.+@.+\..+/, 'Please fill a valid email address'] // regex cơ bản
+        match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
     },
     password: {
         type: String,
-        required: true
+        required: [true, 'Password is required'],
+        minlength: 6
     },
-    registerDate: {
+    createdAt: {
         type: Date,
         default: Date.now
     }
 });
 
-// MIDDLEWARE BCRYPT (Chạy trước khi lưu user mới)
-UserSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) {
-        return next();
+// Hash password trước khi lưu
+userSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
+    
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
     }
-    const salt = await bcrypt.genSalt(10); // genSalt là mức độ phức tạp (10 là tốt)
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
 });
 
-// Phương thức so sánh mật khẩu (Dùng khi đăng nhập)
-UserSchema.methods.matchPassword = async function (enteredPassword) {
-    return await bcrypt.compare(enteredPassword, this.password);
+// Method để so sánh password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
 };
 
-
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', userSchema);

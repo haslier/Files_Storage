@@ -1,34 +1,28 @@
-// server/routes/fileRoutes.js
-
 const express = require('express');
 const router = express.Router();
-// Tải Middleware bảo vệ
-const { protect } = require('../middleware/authMiddleware');
+const fileController = require('../controllers/fileController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// Tải Controller cho các thao tác với file
-const { listMyFiles, uploadFile, downloadFile, deleteFile, shareFile } = require('../controllers/fileController');
+// Upload
+router.post('/upload', 
+    authMiddleware, 
+    fileController.upload.single('file'), 
+    fileController.uploadFile
+);
 
-// --- TẤT CẢ CÁC ROUTE NÀY PHẢI ĐƯỢC BẢO VỆ BẰNG 'protect' ---
+// Get files by sections
+router.get('/myfiles', authMiddleware, fileController.getMyFiles);
+router.get('/shared-by-you', authMiddleware, fileController.getSharedByYou);
+router.get('/shared-to-you', authMiddleware, fileController.getSharedToYou);
+router.get('/bin', authMiddleware, fileController.getBinFiles);
 
-// @route GET /api/files/myfiles
-// Lấy danh sách file của người dùng (Bảo mật)
-router.get('/myfiles', protect, listMyFiles);
-
-// @route POST /api/files/upload
-// Tải lên file (Bảo mật - sẽ thêm Multer ở Controller)
-router.post('/upload', protect, uploadFile); 
-
-// @route GET /api/files/:id/download
-// Tải xuống file (Bảo mật)
-router.get('/:id/download', protect, downloadFile);
-
-// @route DELETE /api/files/:id
-// Xóa file (Bảo mật)
-router.delete('/:id', protect, deleteFile);
-
-// @route POST /api/files/:id/share
-// Chia sẻ file (Bảo mật)
-router.post('/:id/share', protect, shareFile);
-
+// File operations
+router.get('/view/:id', authMiddleware, fileController.viewFile);
+router.put('/save/:id', authMiddleware, fileController.saveFile);
+router.get('/download/:id', authMiddleware, fileController.downloadFile);
+router.delete('/:id', authMiddleware, fileController.deleteFile);
+router.put('/restore/:id', authMiddleware, fileController.restoreFile);
+router.delete('/permanent/:id', authMiddleware, fileController.deletePermanently);
+router.post('/share/:id', authMiddleware, fileController.shareFile);
 
 module.exports = router;

@@ -1,101 +1,117 @@
-// server/controllers/authController.js
-
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-
-// === HÀM KIỂM TRA ĐỘ MẠNH MẬT KHẨU (TẠI BACKEND) ===
-const validatePassword = (password) => {
-    // Console log để kiểm tra mật khẩu nhận được
-    console.log(`Kiểm tra mật khẩu: ${password}`); 
-    
-    if (password.length < 8) return "Mật khẩu phải dài ít nhất 8 ký tự.";
-    if (!/[A-Z]/.test(password)) return "Mật khẩu phải chứa ít nhất 1 ký tự viết hoa.";
-    if (!/[a-z]/.test(password)) return "Mật khẩu phải chứa ít nhất 1 ký tự viết thường.";
-    if (!/[0-9]/.test(password)) return "Mật khẩu phải chứa ít nhất 1 chữ số.";
-    if (!/[^A-Za-z0-9]/.test(password)) return "Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.";
-    
-    console.log("Mật khẩu HỢP LỆ!"); // Console log thành công
-    return null; // Mật khẩu hợp lệ
-}
-
-// Hàm tạo JWT
-const generateToken = (user) => {
-    // PHẦN QUAN TRỌNG: Thêm 'email' và 'username' vào object payload
-    return jwt.sign(
-        { 
-             
-            email: user.email, 
-            username: user.username 
-        }, 
-        process.env.JWT_SECRET, 
-        { expiresIn: '30d' }
-    ); 
-};
-
-// @route POST /api/auth/register
-exports.registerUser = async (req, res) => {
-    
-
-
-    const { username, email, password } = req.body;
-    
-    // KIỂM TRA MẬT KHẨU TẠI BACKEND
-    const passwordError = validatePassword(password);
-
-    if (passwordError) {
-        
-        return res.status(400).json({ message: passwordError }); 
-         
-    }
-
-    
-
+// Register
+exports.register = async (req, res) => {
     try {
-        const userExists = await User.findOne({ email });
+        const { username, email, password } = req.body;
 
-        if (userExists) {
-            return res.status(400).json({ message: 'Email đã tồn tại' });
-        }
-
-        const user = await User.create({ username, email, password });
-
-        if (user) {
-            res.status(201).json({
-                username: user.username,
-                email: user.email,
-                token: generateToken(user), // Tạo token ngay sau khi đăng ký
+        // Validation
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide all required fields'
             });
-        } else {
-            res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
         }
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi server khi đăng ký', error: error.message });
-    }
-};
 
-// @route POST /api/auth/login
-exports.loginUser = async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        // Tìm User bằng username hoặc email
-        const user = await User.findOne({ 
-            $or: [{ username: username }, { email: username }] 
+        // Check if user exists
+        const existingUser = await User.findOne({
+            $or: [{ email }, { username }]
         });
 
-        // So sánh mật khẩu đã hash
-        if (user && (await user.matchPassword(password))) {
-            res.json({
-                username: user.username,
-                email: user.email,
-                token: generateToken(user), // Tạo token khi đăng nhập thành công
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username or email already exists'
             });
-        } else {
-            res.status(401).json({ message: 'Tên người dùng hoặc mật khẩu không đúng' });
         }
+
+        // Create user
+        const user = await User.create({
+            username,
+            email,
+            password
+        });
+
+        console.log('✅ User registered:', user.email);
+
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        });
+
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi server khi đăng nhập', error: error.message });
+        console.error('Register error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error registering user',
+            error: error.message
+        });
     }
 };
 
+// Login
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Validation
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide email and password'
+            });
+        }
+
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Check password
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Create token
+        const token = jwt.sign(
+            { userId: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        console.log('✅ User logged in:', user.email);
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error logging in',
+            error: error.message
+        });
+    }
+};

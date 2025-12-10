@@ -1,275 +1,489 @@
-body {
-    font-family: Arial, sans-serif;
+* {
     margin: 0;
     padding: 0;
-    background-color: #f6f6f6;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fa;
     color: #333;
+    overflow-x: hidden;
 }
 
 /* Header */
 .header {
-    background-color: #ffffff;
-    padding: 10px 20px;
-    border-bottom: 1px solid #ddd;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    z-index: 100;
 }
 
-.header-title {
-    font-size: 18px;
-    font-weight: bold;
+.header-left h1 {
+    font-size: 22px;
+    color: #667eea;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 .search-bar {
-    flex: 1;
-    margin: 0 20px;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    width: 250px;
+    font-size: 14px;
 }
 
-.search-bar input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+.search-bar:focus {
+    outline: none;
+    border-color: #667eea;
 }
 
-.header-icons {
-    display: flex;
-    align-items: center;
-}
-
-.header-icons .icon {
-    margin-left: 15px;
-    cursor: pointer;
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 50%;
     font-size: 20px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.icon-btn:hover {
+    background: #e0e0e0;
+}
+
+/* User Menu Popup */
+.user-menu-popup {
+    position: fixed;
+    top: 80px;
+    right: 30px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    min-width: 250px;
+    display: none;
+    z-index: 101;
+}
+
+.user-menu-popup.visible {
+    display: block;
+}
+
+.user-info {
+    margin-bottom: 15px;
+}
+
+.user-email {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.user-username {
+    color: #666;
+    font-size: 14px;
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 10px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.logout-btn:hover {
+    background: #c0392b;
 }
 
 /* Sidebar */
 .sidebar {
-    background-color: #ffffff;
-    width: 200px;
-    height: calc(100vh - 60px);
-    border-right: 1px solid #ddd;
-    padding: 20px 0;
     position: fixed;
-    top: 60px;
+    top: 70px;
     left: 0;
+    width: 250px;
+    height: calc(100vh - 70px);
+    background: white;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    padding: 20px 0;
+    z-index: 50;
 }
 
 .sidebar-item {
-    padding: 10px 20px;
-    cursor: pointer;
     display: flex;
     align-items: center;
+    gap: 12px;
+    padding: 15px 25px;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #666;
+    font-weight: 500;
 }
 
-
-
 .sidebar-item:hover {
-    background-color: #f0f0f0;
+    background: #f5f7fa;
+    color: #667eea;
+}
+
+.sidebar-item.active {
+    background: #667eea;
+    color: white;
+    border-right: 4px solid #5568d3;
 }
 
 .sidebar-icon {
-    margin-right: 10px;
-    font-size: 18px;
+    font-size: 20px;
 }
 
 /* Main Content */
-.main {
-    margin-left: 200px;
-    padding: 20px;
+.main-content {
+    margin-left: 250px;
+    margin-top: 70px;
+    padding: 30px;
+    min-height: calc(100vh - 70px);
 }
 
-.upload-btn {
-    background-color: #0078d4;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
+/* Upload Section */
+.upload-section {
     margin-bottom: 20px;
 }
 
-.upload-btn:hover {
-    background-color: #005a9e;
+.upload-btn {
+    padding: 12px 25px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
 }
 
-h2 {
+.upload-btn:hover {
+    background: #5568d3;
+}
+
+.upload-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Shared Tabs */
+.shared-tabs {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.tab-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* Content Title */
+#contentTitle {
+    margin-bottom: 20px;
+    color: #333;
     font-size: 24px;
-    margin-bottom: 10px;
+}
+
+/* Table */
+.table-container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
 }
 
 .files-table {
     width: 100%;
     border-collapse: collapse;
-    background-color: white;
-    border: 1px solid #ddd;
 }
 
-.files-table th, .files-table td {
-    padding: 10px;
+.files-table thead {
+    background: #f8f9fa;
+}
+
+.files-table th,
+.files-table td {
+    padding: 15px;
     text-align: left;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .files-table th {
-    background-color: #f0f0f0;
+    font-weight: 600;
+    color: #666;
+    font-size: 14px;
 }
 
+.files-table tbody tr:hover {
+    background: #f8f9fa;
+}
 
-/* ======================================================= */
-/* DARK MODE STYLES */
-/* ======================================================= */
+/* Action Buttons */
+.file-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 
-/* Nút Dark Mode trong Header */
-.header-icons .icon#darkModeToggle {
-    font-size: 20px;
-    margin-left: 15px;
+.action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
     cursor: pointer;
-    transition: transform 0.3s;
+    font-weight: 500;
+    transition: all 0.3s;
 }
 
-/* Ẩn icon mặc định khi ở Dark Mode */
-body.dark-mode .header-icons .icon#darkModeToggle {
-    content: "🌙"; /* Dùng icon mặt trăng cho Dark Mode */
-    /* Bạn có thể dùng JS để thay đổi nội dung, xem phần JS bên dưới */
+.download-btn {
+    background: #27ae60;
+    color: white;
 }
 
+.download-btn:hover {
+    background: #229954;
+}
 
-/* 1. Thiết lập màu nền & chữ tổng quát */
+.edit-btn {
+    background: #3498db;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #2980b9;
+}
+
+.view-btn {
+    background: #95a5a6;
+    color: white;
+}
+
+.view-btn:hover {
+    background: #7f8c8d;
+}
+
+.share-btn {
+    background: #f39c12;
+    color: white;
+}
+
+.share-btn:hover {
+    background: #e67e22;
+}
+
+.delete-btn {
+    background: #e74c3c;
+    color: white;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+}
+
+.restore-btn {
+    background: #16a085;
+    color: white;
+}
+
+.restore-btn:hover {
+    background: #138d75;
+}
+
+.delete-permanent-btn {
+    background: #c0392b;
+    color: white;
+}
+
+.delete-permanent-btn:hover {
+    background: #a93226;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.close-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: #e0e0e0;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    background: #ccc;
+}
+
+.modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+#fileContentEditor {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-secondary {
+    padding: 10px 20px;
+    background: #95a5a6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background: #5568d3;
+}
+
+/* Dark Mode */
 body.dark-mode {
-    background-color: #1e1e1e; /* Nền tối */
-    color: #e0e0e0; /* Chữ sáng */
+    background: #1a1a1a;
+    color: #e0e0e0;
 }
 
-/* 2. Header, Sidebar, và Main Content */
 body.dark-mode .header,
 body.dark-mode .sidebar,
-body.dark-mode .files-table {
-    background-color: #252526; /* Nền tối hơn */
-    border-color: #383838; /* Viền tối */
-}
-
-body.dark-mode .files-table th {
-    background-color: #383838; /* Nền đầu bảng tối */
+body.dark-mode .table-container,
+body.dark-mode .user-menu-popup,
+body.dark-mode .modal-content {
+    background: #2d2d2d;
+    color: #e0e0e0;
 }
 
 body.dark-mode .files-table th,
 body.dark-mode .files-table td {
-    border-bottom: 1px solid #383838;
+    border-color: #444;
+}
+
+body.dark-mode .files-table thead {
+    background: #3a3a3a;
 }
 
 body.dark-mode .files-table tbody tr:hover {
-    background-color: #333333; /* Hover tối */
+    background: #3a3a3a;
 }
 
-/* 3. Search Bar */
-body.dark-mode .search-bar input {
-    background-color: #3c3c3c;
-    color: #f0f0f0;
+body.dark-mode .search-bar,
+body.dark-mode #fileContentEditor {
+    background: #3a3a3a;
     border-color: #555;
+    color: #e0e0e0;
 }
 
-/* 4. Sidebar Nav (Item) */
-body.dark-mode .sidebar-item {
-    color: #ccc;
+body.dark-mode .icon-btn {
+    background: #3a3a3a;
+    color: #e0e0e0;
 }
 
-body.dark-mode .sidebar-item:hover {
-    background-color: #3c3c3c; /* Hover tối */
-}
-
-
-
-/* 5. Nút Upload */
-body.dark-mode .upload-btn {
-    background-color: #5397ff; /* Màu xanh nổi bật */
-    color: #1e1e1e;
-}
-
-body.dark-mode .upload-btn:hover {
-    background-color: #367cff;
-}
-
-/* ======================================================= */
-/* STYLES CHO USER MENU POPUP */
-/* ======================================================= */
-
-.user-menu-popup {
-    position: absolute;
-    top: 55px; /* Điều chỉnh để nằm dưới Header */
-    right: 15px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    width: 200px;
-    padding: 15px;
-    z-index: 20; /* Đảm bảo nằm trên các phần tử khác */
-    
-    /* Ẩn ban đầu */
-    display: none;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.2s, transform 0.2s, display 0.2s;
-}
-
-.user-menu-popup.visible {
-    display: block;
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.user-info-display {
-    margin-bottom: 10px;
-}
-
-.user-email {
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; /* Cắt bớt nếu quá dài */
-}
-
-.user-username {
-    font-size: 0.9em;
-    color: #888;
-}
-
-.user-menu-popup hr {
-    border: none;
-    border-top: 1px solid #eee;
-    margin: 10px 0;
-}
-
-.logout-btn {
-    width: 100%;
-    background-color: #dc3545; /* Màu đỏ */
-    color: white;
-    border: none;
-    padding: 8px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.logout-btn:hover {
-    background-color: #c82333;
-}
-
-/* Dark Mode CSS cho Popup */
-body.dark-mode .user-menu-popup {
-    background-color: #252526;
-    border-color: #383838;
-}
-
-body.dark-mode .user-email {
-    color: #f0f0f0;
-}
-
-body.dark-mode .user-username {
-    color: #aaa;
+body.dark-mode .icon-btn:hover {
+    background: #4a4a4a;
 }
