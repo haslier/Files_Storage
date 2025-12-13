@@ -6,24 +6,46 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* THAY YOUR_IMAGE_URL BẰNG LINK ẢNH CỦA BẠN */
+    background-image: url('../assets/background_login.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+}
+
+/* Overlay tối để text dễ đọc */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 0;
 }
 
 .auth-container {
     width: 100%;
     max-width: 450px;
     padding: 20px;
+    position: relative;
+    z-index: 1;
 }
 
 .auth-box {
-    background: white;
-    border-radius: 15px;
+    background: rgba(176, 214, 233, 0.95);
+    border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .auth-box h1 {
@@ -31,6 +53,7 @@ body {
     color: #667eea;
     margin-bottom: 10px;
     font-size: 28px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .auth-box h2 {
@@ -57,29 +80,38 @@ body {
     border: 2px solid #e0e0e0;
     border-radius: 8px;
     font-size: 14px;
-    transition: border-color 0.3s;
+    transition: all 0.3s;
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .form-group input:focus {
     outline: none;
     border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .btn-primary {
     width: 100%;
     padding: 14px;
-    background: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
     border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:hover {
-    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
 }
 
 .switch-form {
@@ -92,8 +124,78 @@ body {
     color: #667eea;
     text-decoration: none;
     font-weight: 600;
+    transition: color 0.3s;
 }
 
 .switch-form a:hover {
+    color: #764ba2;
     text-decoration: underline;
+}
+
+/* Password Requirements Checklist */
+.password-requirements {
+    margin-top: 10px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.requirement-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.requirement-item .checkbox {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ccc;
+    transition: all 0.3s;
+}
+
+.requirement-item.valid {
+    color: #27ae60;
+}
+
+.requirement-item.valid .checkbox {
+    color: #27ae60;
+}
+
+.requirement-item.invalid {
+    color: #e74c3c;
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-primary:disabled:hover {
+    transform: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .auth-container {
+        max-width: 95%;
+        padding: 10px;
+    }
+    
+    .auth-box {
+        padding: 30px 20px;
+    }
+    
+    .auth-box h1 {
+        font-size: 24px;
+    }
+    
+    .auth-box h2 {
+        font-size: 20px;
+    }
 }

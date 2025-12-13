@@ -45,9 +45,34 @@
                     </div>
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" id="regPassword" required minlength="6">
+                        <input type="password" id="regPassword" required minlength="8" oninput="checkPasswordStrength()">
+                        
+                        <!-- Password Requirements Checklist -->
+                        <div class="password-requirements" id="passwordRequirements">
+                            <p style="font-size: 13px; color: #666; margin: 10px 0 5px 0;">Mật khẩu phải có:</p>
+                            <div class="requirement-item" id="req-length">
+                                <span class="checkbox">☐</span>
+                                <span>Ít nhất 8 ký tự</span>
+                            </div>
+                            <div class="requirement-item" id="req-uppercase">
+                                <span class="checkbox">☐</span>
+                                <span>Ít nhất 1 chữ hoa (A-Z)</span>
+                            </div>
+                            <div class="requirement-item" id="req-lowercase">
+                                <span class="checkbox">☐</span>
+                                <span>Ít nhất 1 chữ thường (a-z)</span>
+                            </div>
+                            <div class="requirement-item" id="req-number">
+                                <span class="checkbox">☐</span>
+                                <span>Ít nhất 1 số (0-9)</span>
+                            </div>
+                            <div class="requirement-item" id="req-special">
+                                <span class="checkbox">☐</span>
+                                <span>Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)</span>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" class="btn-primary">Register</button>
+                    <button type="submit" class="btn-primary" id="registerBtn" disabled>Register</button>
                 </form>
                 <p class="switch-form">
                     Already have an account? 

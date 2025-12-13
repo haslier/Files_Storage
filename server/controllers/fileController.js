@@ -1,11 +1,61 @@
 const File = require('../models/File');
 const multer = require('multer');
+const { logAction } = require('../middleware/auditLogger');
+const path = require('path');
 
-// Multer config - lưu vào memory
+// File type whitelist
+const allowedMimeTypes = [
+    'text/plain',
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'application/json',
+    'application/xml',
+    'text/xml',
+    'text/csv',
+    'text/markdown',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-rar-compressed'
+];
+
+// Multer config
 const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+    // Check MIME type
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+        return cb(new Error('File type not allowed'), false);
+    }
+    
+    // Check file extension
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = ['.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.csv', 
+                         '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', 
+                         '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar'];
+    
+    if (!allowedExts.includes(ext)) {
+        return cb(new Error('File extension not allowed'), false);
+    }
+    
+    cb(null, true);
+};
+
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 16 * 1024 * 1024 } // 16MB
+    limits: { 
+        fileSize: 16 * 1024 * 1024, // 16MB
+        files: 1 // Only 1 file per request
+    },
+    fileFilter: fileFilter
 });
 
 exports.upload = upload;
@@ -20,6 +70,14 @@ exports.uploadFile = async (req, res) => {
             });
         }
 
+        // Additional security checks
+        if (req.file.size === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Empty file not allowed'
+            });
+        }
+
         const file = new File({
             filename: req.file.originalname,
             originalName: req.file.originalname,
@@ -31,6 +89,15 @@ exports.uploadFile = async (req, res) => {
         });
 
         await file.save();
+
+        // Log action
+        logAction(req.userId, 'FILE_UPLOADED', {
+            fileId: file._id,
+            fileName: file.originalName,
+            size: file.size,
+            mimeType: file.mimeType
+        });
+
         console.log('✅ File uploaded:', file.originalName);
 
         res.status(201).json({
@@ -46,6 +113,12 @@ exports.uploadFile = async (req, res) => {
 
     } catch (error) {
         console.error('Upload error:', error);
+        
+        logAction(req.userId, 'FILE_UPLOAD_FAILED', {
+            error: error.message,
+            fileName: req.file?.originalname
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Error uploading file',
@@ -308,6 +381,11 @@ exports.deleteFile = async (req, res) => {
         }
 
         if (file.owner.toString() !== req.userId) {
+            logAction(req.userId, 'FILE_DELETE_DENIED', {
+                fileId: req.params.id,
+                reason: 'Not owner'
+            });
+            
             return res.status(403).json({
                 success: false,
                 message: 'Only owner can delete'
@@ -317,6 +395,11 @@ exports.deleteFile = async (req, res) => {
         file.status = 'bin';
         file.deletedAt = new Date();
         await file.save();
+
+        logAction(req.userId, 'FILE_MOVED_TO_BIN', {
+            fileId: file._id,
+            fileName: file.originalName
+        });
 
         res.json({
             success: true,
@@ -391,6 +474,11 @@ exports.deletePermanently = async (req, res) => {
         }
 
         await File.findByIdAndDelete(req.params.id);
+
+        logAction(req.userId, 'FILE_DELETED_PERMANENTLY', {
+            fileId: req.params.id,
+            fileName: file.originalName
+        });
 
         res.json({
             success: true,

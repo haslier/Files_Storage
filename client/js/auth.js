@@ -1,9 +1,49 @@
 const API_URL = 'http://localhost:5500/api';
 
+// Password validation rules
+const passwordRules = {
+    length: { regex: /.{8,}/, id: 'req-length' },
+    uppercase: { regex: /[A-Z]/, id: 'req-uppercase' },
+    lowercase: { regex: /[a-z]/, id: 'req-lowercase' },
+    number: { regex: /[0-9]/, id: 'req-number' },
+    special: { regex: /[!@#$%^&*(),.?":{}|<>]/, id: 'req-special' }
+};
+
+// Check password strength in real-time
+function checkPasswordStrength() {
+    const password = document.getElementById('regPassword').value;
+    const registerBtn = document.getElementById('registerBtn');
+    let allValid = true;
+
+    // Check each rule
+    for (const [key, rule] of Object.entries(passwordRules)) {
+        const element = document.getElementById(rule.id);
+        const isValid = rule.regex.test(password);
+        
+        if (isValid) {
+            element.classList.add('valid');
+            element.classList.remove('invalid');
+            element.querySelector('.checkbox').textContent = '☑';
+        } else {
+            element.classList.remove('valid');
+            element.classList.add('invalid');
+            element.querySelector('.checkbox').textContent = '☐';
+            allValid = false;
+        }
+    }
+
+    // Enable/disable register button
+    registerBtn.disabled = !allValid;
+}
+
 // Show/Hide forms
 function showRegister() {
     document.getElementById('loginForm').style.display = 'none';
     document.getElementById('registerForm').style.display = 'block';
+    // Reset password requirements
+    const password = document.getElementById('regPassword');
+    password.value = '';
+    checkPasswordStrength();
 }
 
 function showLogin() {
@@ -39,7 +79,15 @@ async function handleLogin(event) {
             alert('✅ Login successful!');
             window.location.href = 'dashboard.html';
         } else {
-            alert('❌ ' + data.message);
+            // Handle rate limit error
+            if (response.status === 429) {
+                const retryAfter = data.retryAfter || 300;
+                const minutes = Math.floor(retryAfter / 60);
+                const seconds = retryAfter % 60;
+                alert(`❌ ${data.message}\n\nVui lòng đợi ${minutes} phút ${seconds} giây.`);
+            } else {
+                alert('❌ ' + data.message);
+            }
         }
 
     } catch (error) {
@@ -55,6 +103,20 @@ async function handleRegister(event) {
     const username = document.getElementById('regUsername').value;
     const email = document.getElementById('regEmail').value;
     const password = document.getElementById('regPassword').value;
+
+    // Final validation check
+    let allValid = true;
+    for (const rule of Object.values(passwordRules)) {
+        if (!rule.regex.test(password)) {
+            allValid = false;
+            break;
+        }
+    }
+
+    if (!allValid) {
+        alert('❌ Mật khẩu chưa đủ mạnh. Vui lòng kiểm tra các yêu cầu.');
+        return;
+    }
 
     try {
         const response = await fetch(`${API_URL}/auth/register`, {
@@ -74,6 +136,7 @@ async function handleRegister(event) {
             document.getElementById('regUsername').value = '';
             document.getElementById('regEmail').value = '';
             document.getElementById('regPassword').value = '';
+            checkPasswordStrength(); // Reset validation UI
         } else {
             alert('❌ ' + data.message);
         }

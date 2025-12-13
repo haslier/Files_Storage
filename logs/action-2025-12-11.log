@@ -1,0 +1,18 @@
+{"timestamp":"2025-12-11T06:29:15.655Z","userId":"anonymous","action":"LOGIN_FAILED","email":"hanguyen2k4@gmail.com","reason":"User not found","ip":"::1"}
+{"timestamp":"2025-12-11T06:29:45.646Z","userId":"693a64d9b549240d8e8590f8","action":"USER_REGISTERED","username":"hanguyen666","email":"hanguyen12345@gmail.com","ip":"::1"}
+{"timestamp":"2025-12-11T06:29:54.243Z","userId":"anonymous","action":"LOGIN_FAILED","email":"hanguyen2k4@gmail.com","reason":"User not found","ip":"::1"}
+{"timestamp":"2025-12-11T06:30:05.954Z","userId":"anonymous","action":"LOGIN_FAILED","email":"hanguyen123456@gmail.com","reason":"User not found","ip":"::1"}
+{"timestamp":"2025-12-11T06:30:11.695Z","userId":"anonymous","action":"LOGIN_FAILED","email":"hanguyen123456@gmail.com","reason":"User not found","ip":"::1"}
+{"timestamp":"2025-12-11T06:35:51.300Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_SUCCESS","username":"hanguyen666","email":"hanguyen12345@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
+{"timestamp":"2025-12-11T06:36:47.522Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_SUCCESS","username":"hanguyen666","email":"hanguyen12345@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
+{"timestamp":"2025-12-11T06:36:52.144Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_FAILED","email":"hanguyen12345@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:36:53.746Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_FAILED","email":"hanguyen12345@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:36:55.951Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_FAILED","email":"hanguyen12345@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:36:57.971Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_FAILED","email":"hanguyen12345@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:36:59.513Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_FAILED","email":"hanguyen12345@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:38:21.147Z","userId":"693a64d9b549240d8e8590f8","action":"LOGIN_SUCCESS","username":"hanguyen666","email":"hanguyen12345@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
+{"timestamp":"2025-12-11T06:38:38.857Z","userId":"693a64d9b549240d8e8590f8","action":"FILE_UPLOADED","fileId":"693a66ee7b2c2f3d49e29797","fileName":"BÃ¡o cÃ¡o W8-9 Project III .docx","size":699476,"mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+{"timestamp":"2025-12-11T06:39:16.761Z","userId":"693a67147b2c2f3d49e2979d","action":"USER_REGISTERED","username":"mesiu","email":"mesiu710@gmail.com","ip":"::1"}
+{"timestamp":"2025-12-11T06:39:26.877Z","userId":"693a67147b2c2f3d49e2979d","action":"LOGIN_SUCCESS","username":"mesiu","email":"mesiu710@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"}
+{"timestamp":"2025-12-11T06:41:00.279Z","userId":"693a67147b2c2f3d49e2979d","action":"LOGIN_FAILED","email":"mesiu710@gmail.com","reason":"Invalid password","ip":"::1"}
+{"timestamp":"2025-12-11T06:41:02.183Z","userId":"693a67147b2c2f3d49e2979d","action":"LOGIN_FAILED","email":"mesiu710@gmail.com","reason":"Invalid password","ip":"::1"}

@@ -291,7 +291,7 @@ async function uploadFile() {
         alert('❌ Upload failed: ' + error.message);
     } finally {
         uploadButton.disabled = false;
-        uploadButton.textContent = '📤 Upload';
+        uploadButton.textContent = 'Upload';
     }
 }
 
