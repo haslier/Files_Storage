@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:5500/api';
 let currentView = 'myfiles';
 let currentSubView = null;
 let currentEditingFileId = null;
+let allFiles = []; // Store all files for search
 
 // Check authentication
 const token = localStorage.getItem('token');
@@ -48,6 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Display user info
     displayEmail.textContent = localStorage.getItem('email') || 'No email';
     displayUsername.textContent = localStorage.getItem('username') || 'User';
+
+    // Load storage info
+    loadStorageInfo();
 
     // Dark mode
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -117,6 +121,54 @@ document.addEventListener('DOMContentLoaded', () => {
     loadContent('myfiles');
 });
 
+// Load storage info
+async function loadStorageInfo() {
+    try {
+        const response = await fetch(`${API_URL}/auth/storage`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            updateStorageDisplay(data.storage);
+        }
+
+    } catch (error) {
+        console.error('Load storage error:', error);
+        document.getElementById('storageText').textContent = 'Không thể tải';
+    }
+}
+
+// Update storage display
+function updateStorageDisplay(storage) {
+    const storageBarFill = document.getElementById('storageBarFill');
+    const storageText = document.getElementById('storageText');
+
+    const percentage = storage.percentage;
+    
+    // Update bar width
+    storageBarFill.style.width = `${percentage}%`;
+    
+    // Update bar color based on usage
+    storageBarFill.classList.remove('warning', 'danger');
+    if (percentage >= 90) {
+        storageBarFill.classList.add('danger');
+    } else if (percentage >= 75) {
+        storageBarFill.classList.add('warning');
+    }
+
+    // Update text
+    storageText.textContent = `${storage.usedGB} GB / ${storage.limitGB} GB (${percentage}%)`;
+    
+    // Show percentage in bar if enough space
+    if (percentage > 15) {
+        storageBarFill.textContent = `${percentage}%`;
+    } else {
+        storageBarFill.textContent = '';
+    }
+}
+
 // Load content
 async function loadContent(view, subView = null) {
     currentView = view;
@@ -161,6 +213,7 @@ async function loadContent(view, subView = null) {
         const data = await response.json();
 
         if (data.success) {
+            allFiles = data.files; // Store for search
             displayFiles(data.files, view);
         } else {
             throw new Error(data.message);
@@ -179,23 +232,46 @@ async function loadContent(view, subView = null) {
 }
 
 // Display files
-function displayFiles(files, view) {
+function displayFiles(files, view, searchTerm = '') {
     const filesTableBody = document.getElementById('filesTableBody');
     const userId = localStorage.getItem('userId');
 
     if (!files || files.length === 0) {
+        const message = searchTerm 
+            ? `🔍 Không tìm thấy kết quả cho "${searchTerm}"` 
+            : '📁 No files found';
+        
         filesTableBody.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 40px;">
-                    📁 No files found
+                <td colspan="4" class="no-results-row">
+                    ${message}
                 </td>
             </tr>
         `;
         return;
     }
 
+    // Check if file is editable
+    function isTextFile(file) {
+        const textMimeTypes = [
+            'text/plain',
+            'text/html',
+            'text/css',
+            'text/javascript',
+            'application/json',
+            'application/xml',
+            'text/xml',
+            'text/csv',
+            'text/markdown'
+        ];
+        
+        return textMimeTypes.includes(file.mimeType) || 
+               file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
+    }
+
     filesTableBody.innerHTML = files.map(file => {
         const isOwner = file.owner._id === userId || file.owner === userId;
+        const canEdit = isTextFile(file);
         let actions = '';
 
         if (view === 'myfiles') {
@@ -203,9 +279,11 @@ function displayFiles(files, view) {
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
                 </button>
-                <button class="action-btn edit-btn" onclick="editFile('${file._id}')">
-                    ✏️ Edit
-                </button>
+                ${canEdit ? `
+                    <button class="action-btn edit-btn" onclick="editFile('${file._id}')">
+                        ✏️ Edit
+                    </button>
+                ` : ''}
                 ${isOwner ? `
                     <button class="action-btn share-btn" onclick="shareFile('${file._id}')">
                         🔗 Share
@@ -217,8 +295,13 @@ function displayFiles(files, view) {
             `;
         } else if (view === 'shared') {
             actions = `
-                <button class="action-btn view-btn" onclick="viewFile('${file._id}')">
-                    👁️ View
+                ${canEdit ? `
+                    <button class="action-btn view-btn" onclick="viewFile('${file._id}')">
+                        👁️ View
+                    </button>
+                ` : ''}
+                <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
+                    ⬇️ Download
                 </button>
             `;
         } else if (view === 'bin') {
@@ -232,12 +315,23 @@ function displayFiles(files, view) {
             `;
         }
 
+        // Get file icon based on type
+        let fileIcon = '📄';
+        if (file.mimeType.startsWith('image/')) fileIcon = '🖼️';
+        else if (file.mimeType.startsWith('video/')) fileIcon = '🎥';
+        else if (file.mimeType.startsWith('audio/')) fileIcon = '🎵';
+        else if (file.mimeType.includes('pdf')) fileIcon = '📕';
+        else if (file.mimeType.includes('word')) fileIcon = '📘';
+        else if (file.mimeType.includes('excel') || file.mimeType.includes('spreadsheet')) fileIcon = '📊';
+        else if (file.mimeType.includes('zip') || file.mimeType.includes('rar')) fileIcon = '📦';
+
         return `
             <tr>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span>📄</span>
-                        <span>${file.originalName}</span>
+                        <span>${fileIcon}</span>
+                        <span>${searchTerm ? highlightText(file.originalName, searchTerm) : file.originalName}</span>
+                        ${!canEdit ? '<span style="font-size: 11px; color: #999;">(Binary)</span>' : ''}
                     </div>
                 </td>
                 <td>${formatDate(file.uploadedAt)}</td>
@@ -250,6 +344,48 @@ function displayFiles(files, view) {
             </tr>
         `;
     }).join('');
+}
+
+// Search files
+function searchFiles() {
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput.value.toLowerCase().trim();
+
+    if (!searchTerm) {
+        // No search term, show all files
+        displayFiles(allFiles, currentView);
+        return;
+    }
+
+    // Filter files by multiple criteria
+    const filteredFiles = allFiles.filter(file => {
+        const nameMatch = file.originalName.toLowerCase().includes(searchTerm);
+        const ownerMatch = file.owner?.username?.toLowerCase().includes(searchTerm);
+        const dateMatch = formatDate(file.uploadedAt).toLowerCase().includes(searchTerm);
+        
+        return nameMatch || ownerMatch || dateMatch;
+    });
+
+    // Display filtered results with highlight
+    displayFiles(filteredFiles, currentView, searchTerm);
+
+    // Log search for analytics (optional)
+    console.log(`🔍 Search: "${searchTerm}" - Found: ${filteredFiles.length} files`);
+}
+
+// Helper function to highlight search term
+function highlightText(text, searchTerm) {
+    if (!searchTerm) return text;
+    
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    return text.replace(regex, '<span class="highlight">$1</span>');
+}
+
+// Clear search
+function clearSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.value = '';
+    displayFiles(allFiles, currentView);
 }
 
 // Upload file
@@ -281,6 +417,12 @@ async function uploadFile() {
         if (data.success) {
             alert('✅ File uploaded successfully!');
             fileInput.value = '';
+            
+            // Update storage display
+            if (data.storageInfo) {
+                updateStorageDisplay(data.storageInfo);
+            }
+            
             loadContent('myfiles');
         } else {
             throw new Error(data.message);
@@ -291,7 +433,7 @@ async function uploadFile() {
         alert('❌ Upload failed: ' + error.message);
     } finally {
         uploadButton.disabled = false;
-        uploadButton.textContent = 'Upload';
+        uploadButton.textContent = '📤 Upload';
     }
 }
 
@@ -331,12 +473,12 @@ async function editFile(fileId) {
 
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.file.canEdit) {
             currentEditingFileId = fileId;
             document.getElementById('fileContentEditor').value = data.file.content;
             document.getElementById('editModal').classList.add('active');
         } else {
-            throw new Error(data.message);
+            alert('❌ ' + (data.message || 'This file type cannot be edited. Only text files (.txt, .js, .json, .html, etc.) can be edited.'));
         }
 
     } catch (error) {
@@ -354,10 +496,18 @@ async function viewFile(fileId) {
 
         const data = await response.json();
 
-        if (data.success) {
-            alert('File Content (Read-only):\n\n' + data.file.content);
+        if (data.success && data.file.canEdit) {
+            // Show content in a modal or alert
+            const modal = document.getElementById('editModal');
+            document.getElementById('fileContentEditor').value = data.file.content;
+            document.getElementById('fileContentEditor').disabled = true; // Read-only
+            modal.classList.add('active');
+            
+            // Hide save button, show close button
+            const saveBtn = modal.querySelector('.btn-primary');
+            if (saveBtn) saveBtn.style.display = 'none';
         } else {
-            throw new Error(data.message);
+            alert('❌ ' + (data.message || 'This file cannot be viewed as text.'));
         }
 
     } catch (error) {
@@ -400,7 +550,13 @@ async function saveEditedFile() {
 
 // Close edit modal
 function closeEditModal() {
-    document.getElementById('editModal').classList.remove('active');
+    const modal = document.getElementById('editModal');
+    const editor = document.getElementById('fileContentEditor');
+    const saveBtn = modal.querySelector('.btn-primary');
+    
+    modal.classList.remove('active');
+    editor.disabled = false; // Reset to editable
+    if (saveBtn) saveBtn.style.display = 'block'; // Show save button again
     currentEditingFileId = null;
 }
 

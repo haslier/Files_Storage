@@ -13,7 +13,7 @@
             <h1>📁 Files Storage System</h1>
         </div>
         <div class="header-right">
-            <input type="text" class="search-bar" placeholder="Search files...">
+            <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="searchFiles()">
             <button class="icon-btn" id="darkModeToggle">☀️</button>
             <button class="icon-btn" id="userIcon">👤</button>
         </div>
@@ -25,6 +25,18 @@
             <p class="user-email" id="displayEmail">loading...</p>
             <p class="user-username" id="displayUsername">loading...</p>
         </div>
+        
+        <!-- Storage Info -->
+        <div class="storage-info" id="storageInfo">
+            <p class="storage-label">Dung lượng lưu trữ</p>
+            <div class="storage-bar-container">
+                <div class="storage-bar" id="storageBar">
+                    <div class="storage-bar-fill" id="storageBarFill"></div>
+                </div>
+            </div>
+            <p class="storage-text" id="storageText">Đang tải...</p>
+        </div>
+        
         <hr>
         <button class="logout-btn" id="logoutButton">🚪 Logout</button>
     </div>

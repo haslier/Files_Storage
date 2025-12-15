@@ -78,6 +78,28 @@ exports.uploadFile = async (req, res) => {
             });
         }
 
+        // Check storage limit
+        const User = require('../models/User');
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const newStorageUsed = user.storageUsed + req.file.size;
+
+        if (newStorageUsed > user.storageLimit) {
+            const storageInfo = user.getStorageInfo();
+            return res.status(413).json({
+                success: false,
+                message: `❌ Không đủ dung lượng! Bạn đã dùng ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
+                storageInfo: storageInfo
+            });
+        }
+
         const file = new File({
             filename: req.file.originalname,
             originalName: req.file.originalname,
@@ -90,12 +112,18 @@ exports.uploadFile = async (req, res) => {
 
         await file.save();
 
+        // Update user storage
+        user.storageUsed = newStorageUsed;
+        await user.save();
+
         // Log action
         logAction(req.userId, 'FILE_UPLOADED', {
             fileId: file._id,
             fileName: file.originalName,
             size: file.size,
-            mimeType: file.mimeType
+            mimeType: file.mimeType,
+            storageUsed: user.storageUsed,
+            storageLimit: user.storageLimit
         });
 
         console.log('✅ File uploaded:', file.originalName);
@@ -108,7 +136,8 @@ exports.uploadFile = async (req, res) => {
                 originalName: file.originalName,
                 size: file.size,
                 uploadedAt: file.uploadedAt
-            }
+            },
+            storageInfo: user.getStorageInfo()
         });
 
     } catch (error) {
@@ -130,15 +159,24 @@ exports.uploadFile = async (req, res) => {
 // GET MY FILES
 exports.getMyFiles = async (req, res) => {
     try {
-        const files = await File.find({
+        const { search } = req.query; // Get search query
+        
+        let query = {
             $or: [
                 { owner: req.userId, status: 'active' },
                 { sharedWith: req.userId, status: 'active' }
             ]
-        })
-        .select('-data')
-        .populate('owner', 'username email')
-        .sort({ uploadedAt: -1 });
+        };
+
+        // Add search filter if provided
+        if (search && search.trim()) {
+            query.originalName = { $regex: search.trim(), $options: 'i' }; // Case-insensitive search
+        }
+
+        const files = await File.find(query)
+            .select('-data')
+            .populate('owner', 'username email')
+            .sort({ uploadedAt: -1 });
 
         res.json({ success: true, files });
 
@@ -473,16 +511,27 @@ exports.deletePermanently = async (req, res) => {
             });
         }
 
+        // Update user storage
+        const User = require('../models/User');
+        const user = await User.findById(req.userId);
+        if (user) {
+            user.storageUsed = Math.max(0, user.storageUsed - file.size);
+            await user.save();
+        }
+
         await File.findByIdAndDelete(req.params.id);
 
         logAction(req.userId, 'FILE_DELETED_PERMANENTLY', {
             fileId: req.params.id,
-            fileName: file.originalName
+            fileName: file.originalName,
+            sizeFreed: file.size,
+            newStorageUsed: user?.storageUsed
         });
 
         res.json({
             success: true,
-            message: 'File deleted permanently'
+            message: 'File deleted permanently',
+            storageInfo: user ? user.getStorageInfo() : null
         });
 
     } catch (error) {
