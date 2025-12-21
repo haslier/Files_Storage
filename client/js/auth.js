@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5500/api';
+const API_URL = window.location.origin + '/api';
 
 // Password validation rules
 const passwordRules = {

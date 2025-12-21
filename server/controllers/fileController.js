@@ -2,8 +2,9 @@ const File = require('../models/File');
 const multer = require('multer');
 const { logAction } = require('../middleware/auditLogger');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
-// File type whitelist
+// File type whitelist - THÊM PDF
 const allowedMimeTypes = [
     'text/plain',
     'text/html',
@@ -18,11 +19,13 @@ const allowedMimeTypes = [
     'image/png',
     'image/gif',
     'image/webp',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/pdf', // PDF
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-powerpoint', // .ppt
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
     'application/zip',
     'application/x-rar-compressed'
 ];
@@ -31,21 +34,30 @@ const allowedMimeTypes = [
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
+    console.log('📎 Upload attempt:', {
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+    });
+    
     // Check MIME type
     if (!allowedMimeTypes.includes(file.mimetype)) {
-        return cb(new Error('File type not allowed'), false);
+        console.log('❌ MIME type not allowed:', file.mimetype);
+        return cb(new Error(`File type not allowed: ${file.mimetype}`), false);
     }
     
     // Check file extension
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedExts = ['.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.csv', 
                          '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', 
-                         '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar'];
+                         '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.rar'];
     
     if (!allowedExts.includes(ext)) {
-        return cb(new Error('File extension not allowed'), false);
+        console.log('❌ Extension not allowed:', ext);
+        return cb(new Error(`File extension not allowed: ${ext}`), false);
     }
     
+    console.log('✅ File type allowed');
     cb(null, true);
 };
 
@@ -317,7 +329,7 @@ exports.viewFile = async (req, res) => {
             });
         }
 
-        // Check if file is editable (text-based)
+        // Check if file is text-based (editable in textarea)
         const textMimeTypes = [
             'text/plain',
             'text/html',
@@ -333,6 +345,33 @@ exports.viewFile = async (req, res) => {
         const isTextFile = textMimeTypes.includes(file.mimeType) || 
                           file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
 
+        // Check if file is Office format or PDF
+        const officeMimeTypes = [
+            'application/pdf', // PDF
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword', // .doc
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+            'application/vnd.ms-powerpoint' // .ppt
+        ];
+
+        const isOfficeFile = officeMimeTypes.includes(file.mimeType) ||
+                            file.originalName.match(/\.(pdf|docx?|xlsx?|pptx?)$/i);
+
+        if (isOfficeFile) {
+            return res.json({
+                success: true,
+                fileType: 'office',
+                file: {
+                    _id: file._id,
+                    originalName: file.originalName,
+                    mimeType: file.mimeType,
+                    isOwner: file.owner.toString() === req.userId
+                }
+            });
+        }
+
         if (!isTextFile) {
             return res.status(400).json({
                 success: false,
@@ -343,6 +382,7 @@ exports.viewFile = async (req, res) => {
 
         res.json({
             success: true,
+            fileType: 'text',
             file: {
                 _id: file._id,
                 originalName: file.originalName,
@@ -358,6 +398,124 @@ exports.viewFile = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error viewing file',
+            error: error.message
+        });
+    }
+};
+
+// GET PUBLIC LINK for Office Online Viewer
+exports.getPublicLink = async (req, res) => {
+    try {
+        const file = await File.findById(req.params.id);
+
+        if (!file) {
+            return res.status(404).json({
+                success: false,
+                message: 'File not found'
+            });
+        }
+
+        // Check permission
+        const hasPermission = file.owner.toString() === req.userId ||
+                            file.sharedWith.includes(req.userId);
+
+        if (!hasPermission) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        // Generate temporary token (expires in 1 hour)
+        const tempToken = jwt.sign(
+            { fileId: file._id, userId: req.userId },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        // Create public download URL
+        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5500}`;
+        const publicUrl = `${baseUrl}/api/files/temp-download/${file._id}?token=${tempToken}`;
+
+        // Determine Office viewer URL
+        let viewerUrl;
+        const ext = file.originalName.split('.').pop().toLowerCase();
+        
+        if (ext === 'pdf') {
+            // PDF - can be viewed directly or with Google Docs
+            viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(publicUrl)}&embedded=true`;
+        } else if (['doc', 'docx'].includes(ext)) {
+            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
+        } else if (['xls', 'xlsx'].includes(ext)) {
+            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
+        } else if (['ppt', 'pptx'].includes(ext)) {
+            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'Not an Office file or PDF'
+            });
+        }
+
+        res.json({
+            success: true,
+            viewerUrl: viewerUrl,
+            expiresIn: '1 hour'
+        });
+
+    } catch (error) {
+        console.error('Get public link error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error generating public link',
+            error: error.message
+        });
+    }
+};
+
+// TEMP DOWNLOAD with token
+exports.tempDownload = async (req, res) => {
+    try {
+        const { token } = req.query;
+        const fileId = req.params.id;
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token required'
+            });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        if (decoded.fileId !== fileId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Invalid token'
+            });
+        }
+
+        const file = await File.findById(fileId);
+
+        if (!file) {
+            return res.status(404).json({
+                success: false,
+                message: 'File not found'
+            });
+        }
+
+        // Set headers for Office Online
+        res.set('Content-Type', file.mimeType);
+        res.set('Content-Disposition', `inline; filename="${file.originalName}"`);
+        res.set('Access-Control-Allow-Origin', '*');
+        res.send(file.data);
+
+    } catch (error) {
+        console.error('Temp download error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error downloading file',
             error: error.message
         });
     }

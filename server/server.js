@@ -51,9 +51,14 @@ app.use(hpp());
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            message: 'Too many requests from this IP, please try again later.'
+        });
+    }
 });
 
 const authLimiter = rateLimit({
@@ -84,14 +89,23 @@ const authLimiter = rateLimit({
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 50, // 50 uploads per hour
-    message: 'Upload limit exceeded, please try again later.'
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            message: 'Upload limit exceeded, please try again later.'
+        });
+    }
 });
 
-// Apply rate limiters
-app.use('/api/', apiLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/files/upload', uploadLimiter);
+// Apply rate limiters - CHỈ ÁP DỤNG CHO LOGIN
+// app.use('/api/', apiLimiter); // ← ĐÃ TẮT
+app.use('/api/auth/login', authLimiter); // ← CHỈ GIỮ CÁI NÀY
+// app.use('/api/auth/register', authLimiter); // ← ĐÃ TẮT
+// app.use('/api/files/upload', uploadLimiter); // ← ĐÃ TẮT
+
+console.log('🔒 Login rate limit ENABLED: 5 lần sai → Khóa 5 phút');
 
 // =========================
 // LOGGING MIDDLEWARE

@@ -1,5 +1,5 @@
 // API Config
-const API_URL = 'http://localhost:5500/api';
+const API_URL = window.location.origin + '/api';
 
 // Global variables
 let currentView = 'myfiles';
@@ -269,9 +269,26 @@ function displayFiles(files, view, searchTerm = '') {
                file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
     }
 
+    // Check if file is Office format or PDF
+    function isOfficeFile(file) {
+        const officeMimeTypes = [
+            'application/pdf', // PDF
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword', // .doc
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+            'application/vnd.ms-powerpoint' // .ppt
+        ];
+        
+        return officeMimeTypes.includes(file.mimeType) ||
+               file.originalName.match(/\.(pdf|docx?|xlsx?|pptx?)$/i);
+    }
+
     filesTableBody.innerHTML = files.map(file => {
         const isOwner = file.owner._id === userId || file.owner === userId;
         const canEdit = isTextFile(file);
+        const isOffice = isOfficeFile(file);
         let actions = '';
 
         if (view === 'myfiles') {
@@ -326,12 +343,14 @@ function displayFiles(files, view, searchTerm = '') {
         else if (file.mimeType.includes('zip') || file.mimeType.includes('rar')) fileIcon = '📦';
 
         return `
-            <tr>
+            <tr ondblclick="handleFileDoubleClick('${file._id}', '${file.originalName.replace(/'/g, "\\'")}', ${canEdit}, ${isOffice})" 
+                style="cursor: pointer;"
+                title="Double-click để ${canEdit ? 'chỉnh sửa' : isOffice ? 'xem' : 'tải về'} file">
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span>${fileIcon}</span>
                         <span>${searchTerm ? highlightText(file.originalName, searchTerm) : file.originalName}</span>
-                        ${!canEdit ? '<span style="font-size: 11px; color: #999;">(Binary)</span>' : ''}
+                        ${!canEdit && !isOffice ? '<span style="font-size: 11px; color: #999;">(Binary)</span>' : ''}
                     </div>
                 </td>
                 <td>${formatDate(file.uploadedAt)}</td>
@@ -344,6 +363,25 @@ function displayFiles(files, view, searchTerm = '') {
             </tr>
         `;
     }).join('');
+}
+
+// Handle file double-click
+function handleFileDoubleClick(fileId, fileName, isTextFile, isOfficeFile) {
+    console.log('Double-click:', fileName, 'Text:', isTextFile, 'Office:', isOfficeFile);
+    
+    if (isTextFile) {
+        // Text file - Open in modal editor
+        editFile(fileId);
+    } else if (isOfficeFile) {
+        // Office file - Open in viewer
+        openOfficeFile(fileId, fileName);
+    } else {
+        // Binary file - Just download
+        const confirmDownload = confirm(`📄 "${fileName}" không thể xem trực tiếp.\n\nBạn có muốn tải về không?`);
+        if (confirmDownload) {
+            downloadFile(fileId, fileName);
+        }
+    }
 }
 
 // Search files
@@ -473,17 +511,68 @@ async function editFile(fileId) {
 
         const data = await response.json();
 
-        if (data.success && data.file.canEdit) {
-            currentEditingFileId = fileId;
-            document.getElementById('fileContentEditor').value = data.file.content;
-            document.getElementById('editModal').classList.add('active');
+        if (data.success) {
+            // Check file type
+            if (data.fileType === 'office') {
+                // Office file - Open in Office Online
+                openOfficeFile(fileId, data.file.originalName);
+            } else if (data.fileType === 'text' && data.file.canEdit) {
+                // Text file - Open in modal
+                currentEditingFileId = fileId;
+                document.getElementById('fileContentEditor').value = data.file.content;
+                document.getElementById('editModal').classList.add('active');
+            } else {
+                alert('❌ This file type cannot be edited.');
+            }
         } else {
-            alert('❌ ' + (data.message || 'This file type cannot be edited. Only text files (.txt, .js, .json, .html, etc.) can be edited.'));
+            alert('❌ ' + (data.message || 'Cannot edit this file.'));
         }
 
     } catch (error) {
         console.error('Edit file error:', error);
         alert('❌ Cannot edit file: ' + error.message);
+    }
+}
+
+// Open Office file in viewer
+async function openOfficeFile(fileId, fileName) {
+    try {
+        console.log('Opening Office file:', fileName);
+
+        // Get public link
+        const response = await fetch(`${API_URL}/files/public-link/${fileId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message);
+        }
+
+        // Extract the file URL from Office viewer URL
+        const fileUrl = decodeURIComponent(data.viewerUrl.split('src=')[1]);
+        
+        // Use Google Docs Viewer (works with localhost via ngrok or public URL)
+        const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+        
+        // Open in new window with larger size
+        const width = 1200;
+        const height = 800;
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+        
+        window.open(
+            viewerUrl, 
+            'FileViewer',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        );
+        
+        console.log('✅ File opened in viewer');
+
+    } catch (error) {
+        console.error('Open Office file error:', error);
+        alert('❌ Không thể mở file: ' + error.message + '\n\nĐể xem file Office, bạn cần:\n1. Sử dụng ngrok để tạo public URL\n2. Hoặc deploy lên server public');
     }
 }
 
