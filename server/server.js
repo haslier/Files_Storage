@@ -26,15 +26,53 @@ app.use(helmet({
 
 
 
-// 2. CORS - Configure properly
+// ✅ ENHANCED CORS Configuration for Office Viewers
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? process.env.FRONTEND_URL || 'https://yourdomain.com'
-        : ['http://localhost:5500', 'http://127.0.0.1:5500'],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost and production URL
+        const allowedOrigins = [
+            'http://localhost:5500',
+            'http://127.0.0.1:5500',
+            'https://files-storage-c4s8.onrender.com'
+        ];
+        
+        // Allow Google Docs Viewer, Microsoft Office Viewer, PDF.js
+        const viewerDomains = [
+            'https://docs.google.com',
+            'https://view.officeapps.live.com',
+            'https://mozilla.github.io'
+        ];
+        
+        if (allowedOrigins.includes(origin) || 
+            viewerDomains.some(domain => origin?.startsWith(domain))) {
+            callback(null, true);
+        } else if (process.env.NODE_ENV === 'development') {
+            // In development, allow all origins
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    exposedHeaders: ['Content-Length', 'Content-Type', 'Content-Range', 'Accept-Ranges'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'Range']
 };
+
 app.use(cors(corsOptions));
+
+// ✅ Additional CORS middleware for temp-download route
+app.use('/api/files/temp-download', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Content-Range, Accept-Ranges');
+    res.header('X-Frame-Options', 'ALLOWALL'); // Allow embedding in iframes
+    next();
+});
 
 // 3. Body parser
 app.use(express.json({ limit: '16mb' }));
@@ -255,3 +293,5 @@ process.on('SIGTERM', () => {
         console.log('✅ Process terminated');
     });
 });
+
+

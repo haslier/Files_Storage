@@ -34,7 +34,7 @@ const allowedMimeTypes = [
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-    console.log('📎 Upload attempt:', {
+    console.log('🔎 Upload attempt:', {
         filename: file.originalname,
         mimetype: file.mimetype,
         size: file.size
@@ -457,11 +457,18 @@ exports.getPublicLink = async (req, res) => {
     }
 };
 
-// TEMP DOWNLOAD with token
+// TEMP DOWNLOAD with token - FIXED VERSION with better CORS
 exports.tempDownload = async (req, res) => {
     try {
         const { token } = req.query;
         const fileId = req.params.id;
+
+        console.log('📥 Temp download request:', {
+            fileId,
+            hasToken: !!token,
+            origin: req.headers.origin,
+            userAgent: req.headers['user-agent']?.substring(0, 50)
+        });
 
         if (!token) {
             return res.status(401).json({
@@ -475,6 +482,7 @@ exports.tempDownload = async (req, res) => {
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
+            console.log('❌ Token verification failed:', err.message);
             return res.status(401).json({
                 success: false,
                 message: 'Invalid or expired token'
@@ -497,30 +505,65 @@ exports.tempDownload = async (req, res) => {
             });
         }
 
-        console.log('✅ Temp download:', file.originalName, 'Size:', file.size);
+        console.log('✅ Serving file:', {
+            name: file.originalName,
+            size: file.size,
+            mimeType: file.mimeType
+        });
 
-        // IMPORTANT: Set proper headers for Office viewers
+        // ✅ CRITICAL: Set proper CORS headers for Google Docs Viewer
         res.set({
             'Content-Type': file.mimeType,
             'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalName)}"`,
             'Content-Length': file.size,
+            
+            // CORS headers - Allow ALL origins for viewers
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
-            'Access-Control-Expose-Headers': 'Content-Length, Content-Type',
+            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Range',
+            'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Content-Range, Accept-Ranges',
+            
+            // Range requests support (for large files)
+            'Accept-Ranges': 'bytes',
+            
+            // Cache for 1 hour
             'Cache-Control': 'public, max-age=3600',
-            'X-Content-Type-Options': 'nosniff'
+            
+            // Security headers
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'ALLOWALL' // Allow embedding in iframes
         });
         
+        // Handle range requests (for streaming large files)
+        const range = req.headers.range;
+        if (range) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : file.size - 1;
+            const chunksize = (end - start) + 1;
+            
+            res.status(206); // Partial Content
+            res.set('Content-Range', `bytes ${start}-${end}/${file.size}`);
+            res.set('Content-Length', chunksize);
+            
+            // Send partial data
+            const chunk = file.data.slice(start, end + 1);
+            return res.send(chunk);
+        }
+        
+        // Send complete file
         res.send(file.data);
 
     } catch (error) {
         console.error('❌ Temp download error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error downloading file',
-            error: error.message
-        });
+        
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: 'Error downloading file',
+                error: error.message
+            });
+        }
     }
 };
 
@@ -750,6 +793,112 @@ exports.shareFile = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error sharing file',
+            error: error.message
+        });
+    }
+};
+
+// ============================================
+// ✅ NEW: UPDATE FILE FUNCTION
+// ============================================
+exports.updateFile = async (req, res) => {
+    try {
+        const fileId = req.params.id;
+        
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // Find existing file
+        const existingFile = await File.findById(fileId);
+
+        if (!existingFile) {
+            return res.status(404).json({
+                success: false,
+                message: 'File not found'
+            });
+        }
+
+        // Check ownership
+        if (existingFile.owner.toString() !== req.userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only owner can update file'
+            });
+        }
+
+        // Update user storage
+        const User = require('../models/User');
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Calculate new storage (remove old file size, add new file size)
+        const sizeDifference = req.file.size - existingFile.size;
+        const newStorageUsed = user.storageUsed + sizeDifference;
+
+        if (newStorageUsed > user.storageLimit) {
+            const storageInfo = user.getStorageInfo();
+            return res.status(413).json({
+                success: false,
+                message: `❌ Không đủ dung lượng! Bạn đã dùng ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
+                storageInfo: storageInfo
+            });
+        }
+
+        // Update file
+        existingFile.data = req.file.buffer;
+        existingFile.size = req.file.size;
+        existingFile.mimeType = req.file.mimetype;
+        existingFile.lastModified = new Date();
+        await existingFile.save();
+
+        // Update user storage
+        user.storageUsed = newStorageUsed;
+        await user.save();
+
+        // Log action
+        logAction(req.userId, 'FILE_UPDATED', {
+            fileId: existingFile._id,
+            fileName: existingFile.originalName,
+            oldSize: existingFile.size,
+            newSize: req.file.size,
+            storageUsed: user.storageUsed
+        });
+
+        console.log('✅ File updated:', existingFile.originalName);
+
+        res.json({
+            success: true,
+            message: 'File updated successfully',
+            file: {
+                _id: existingFile._id,
+                originalName: existingFile.originalName,
+                size: existingFile.size,
+                lastModified: existingFile.lastModified
+            },
+            storageInfo: user.getStorageInfo()
+        });
+
+    } catch (error) {
+        console.error('❌ Update file error:', error);
+        
+        logAction(req.userId, 'FILE_UPDATE_FAILED', {
+            error: error.message,
+            fileId: req.params.id
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Error updating file',
             error: error.message
         });
     }

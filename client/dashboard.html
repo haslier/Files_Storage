@@ -62,7 +62,7 @@
         <!-- Upload Section -->
         <div class="upload-section">
             <input type="file" id="fileInput" style="display: none;">
-            <button class="upload-btn" id="uploadButton"> Upload</button>
+            <button class="upload-btn" id="uploadButton">📤 Upload</button>
         </div>
 
         <!-- Shared Sub-tabs (hidden by default) -->
@@ -96,11 +96,11 @@
         </div>
     </div>
 
-    <!-- Edit Modal -->
+    <!-- ✅ Text File Editor Modal (for simple text files only) -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit File</h3>
+                <h3>Edit Text File</h3>
                 <button class="close-btn" onclick="closeEditModal()">×</button>
             </div>
             <div class="modal-body">
@@ -113,6 +113,172 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- ✅ File Viewer Modal (READ ONLY - No Edit) -->
+    <!-- ============================================ -->
+    <div id="fileViewerModal" class="file-viewer-modal">
+        <div class="file-viewer-content">
+            <div class="file-viewer-header">
+                <div class="file-info">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name" id="fileViewerName">Document.docx</span>
+                </div>
+                <div class="file-actions">
+                    <button class="viewer-btn viewer-btn-download" onclick="downloadCurrentFile()">
+                        ⬇️ Tải về
+                    </button>
+                    <button class="viewer-btn viewer-btn-close" onclick="closeFileViewer()">
+                        ✖️ Đóng
+                    </button>
+                </div>
+            </div>
+            <div class="file-viewer-body" id="fileViewerBody">
+                <!-- Viewer content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ✅ File Viewer Styles -->
+    <!-- ============================================ -->
+    <style>
+    /* File Viewer Modal Styles */
+    .file-viewer-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        animation: fadeIn 0.2s;
+    }
+
+    .file-viewer-modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .file-viewer-content {
+        width: 95%;
+        height: 95%;
+        background: white;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    .file-viewer-header {
+        background: #2c3e50;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .file-icon {
+        font-size: 24px;
+    }
+
+    .file-name {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .file-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .viewer-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .viewer-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .viewer-btn-download {
+        background: #3498db;
+        color: white;
+    }
+
+    .viewer-btn-close {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .file-viewer-body {
+        flex: 1;
+        overflow: auto;
+        background: #f5f5f5;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .file-viewer-content {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+        }
+        
+        .file-viewer-header {
+            flex-direction: column;
+            gap: 10px;
+            border-radius: 0;
+        }
+        
+        .file-actions {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    </style>
+
+    <!-- ============================================ -->
+    <!-- ✅ External Libraries -->
+    <!-- ============================================ -->
+    
+    <!-- Mammoth.js - DOCX to HTML converter -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+    <!-- SheetJS - Excel viewer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- ============================================ -->
+    <!-- ✅ Scripts -->
+    <!-- ============================================ -->
     <script src="js/dashboard.js"></script>
+    
+    <!-- ✅ File Viewer Script (READ ONLY) -->
+    <script src="js/officeEditor.js"></script>
 </body>
 </html>

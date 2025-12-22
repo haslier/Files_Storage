@@ -1,9 +1,5 @@
-// ✅ API Config - Auto-detect production or local
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5500/api'
-    : 'https://files-storage-c4s8.onrender.com/api';
-
-console.log('🌐 API URL:', API_URL);
+// API Config
+const API_URL = 'http://localhost:5500/api';
 
 // Global variables
 let currentView = 'myfiles';
@@ -235,7 +231,7 @@ async function loadContent(view, subView = null) {
     }
 }
 
-// Display files
+// Display files - UPDATED: Remove Edit buttons, only View for supported files
 function displayFiles(files, view, searchTerm = '') {
     const filesTableBody = document.getElementById('filesTableBody');
     const userId = localStorage.getItem('userId');
@@ -255,7 +251,44 @@ function displayFiles(files, view, searchTerm = '') {
         return;
     }
 
-    // Check if file is editable
+    // Check if file can be viewed (6 supported types)
+    function canViewFile(file) {
+        const viewableTypes = [
+            // Word
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword', // .doc
+            // Excel
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            // PowerPoint
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+            'application/vnd.ms-powerpoint', // .ppt
+            // PDF
+            'application/pdf',
+            // Text
+            'text/plain',
+            'text/html',
+            'text/css',
+            'text/javascript',
+            'application/json',
+            'text/markdown',
+            // Images
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp'
+        ];
+        
+        const viewableExts = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf', 
+                              'txt', 'log', 'md', 'json', 'xml', 'csv', 'js', 'html', 'css',
+                              'jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        const ext = file.originalName.split('.').pop().toLowerCase();
+        
+        return viewableTypes.includes(file.mimeType) || viewableExts.includes(ext);
+    }
+
+    // Check if file is text (editable in simple textarea)
     function isTextFile(file) {
         const textMimeTypes = [
             'text/plain',
@@ -273,25 +306,10 @@ function displayFiles(files, view, searchTerm = '') {
                file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
     }
 
-    // Check if file is Office format
-    function isOfficeFile(file) {
-        const officeMimeTypes = [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-            'application/msword', // .doc
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-            'application/vnd.ms-excel', // .xls
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-            'application/vnd.ms-powerpoint' // .ppt
-        ];
-        
-        return officeMimeTypes.includes(file.mimeType) ||
-               file.originalName.match(/\.(docx?|xlsx?|pptx?)$/i);
-    }
-
     filesTableBody.innerHTML = files.map(file => {
         const isOwner = file.owner._id === userId || file.owner === userId;
-        const canEdit = isTextFile(file);
-        const isOffice = isOfficeFile(file);
+        const canView = canViewFile(file);
+        const isText = isTextFile(file);
         let actions = '';
 
         if (view === 'myfiles') {
@@ -299,7 +317,7 @@ function displayFiles(files, view, searchTerm = '') {
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
                 </button>
-                ${canEdit ? `
+                ${isText ? `
                     <button class="action-btn edit-btn" onclick="editFile('${file._id}')">
                         ✏️ Edit
                     </button>
@@ -315,11 +333,6 @@ function displayFiles(files, view, searchTerm = '') {
             `;
         } else if (view === 'shared') {
             actions = `
-                ${canEdit ? `
-                    <button class="action-btn view-btn" onclick="viewFile('${file._id}')">
-                        👁️ View
-                    </button>
-                ` : ''}
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
                 </button>
@@ -337,23 +350,29 @@ function displayFiles(files, view, searchTerm = '') {
 
         // Get file icon based on type
         let fileIcon = '📄';
-        if (file.mimeType.startsWith('image/')) fileIcon = '🖼️';
-        else if (file.mimeType.startsWith('video/')) fileIcon = '🎥';
-        else if (file.mimeType.startsWith('audio/')) fileIcon = '🎵';
-        else if (file.mimeType.includes('pdf')) fileIcon = '📕';
-        else if (file.mimeType.includes('word')) fileIcon = '📘';
-        else if (file.mimeType.includes('excel') || file.mimeType.includes('spreadsheet')) fileIcon = '📊';
-        else if (file.mimeType.includes('zip') || file.mimeType.includes('rar')) fileIcon = '📦';
+        const ext = file.originalName.split('.').pop().toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) fileIcon = '🖼️';
+        else if (['mp4', 'avi', 'mov'].includes(ext)) fileIcon = '🎥';
+        else if (['mp3', 'wav'].includes(ext)) fileIcon = '🎵';
+        else if (ext === 'pdf') fileIcon = '📕';
+        else if (['doc', 'docx'].includes(ext)) fileIcon = '📘';
+        else if (['xls', 'xlsx'].includes(ext)) fileIcon = '📊';
+        else if (['ppt', 'pptx'].includes(ext)) fileIcon = '📊';
+        else if (['zip', 'rar'].includes(ext)) fileIcon = '📦';
+        else if (['txt', 'log', 'md'].includes(ext)) fileIcon = '📝';
+
+        // Double-click action message
+        let doubleClickMsg = canView ? 'Double-click để xem file' : 'Double-click để tải về';
 
         return `
-            <tr ondblclick="handleFileDoubleClick('${file._id}', '${file.originalName.replace(/'/g, "\\'")}', ${canEdit}, ${isOffice})" 
+            <tr ondblclick="handleFileDoubleClick('${file._id}', '${file.originalName.replace(/'/g, "\\'")}', ${canView})" 
                 style="cursor: pointer;"
-                title="Double-click để ${canEdit ? 'chỉnh sửa' : isOffice ? 'xem' : 'tải về'} file">
+                title="${doubleClickMsg}">
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span>${fileIcon}</span>
                         <span>${searchTerm ? highlightText(file.originalName, searchTerm) : file.originalName}</span>
-                        ${!canEdit && !isOffice ? '<span style="font-size: 11px; color: #999;">(Binary)</span>' : ''}
+                        ${!canView ? '<span style="font-size: 11px; color: #999;">(Tải về để xem)</span>' : ''}
                     </div>
                 </td>
                 <td>${formatDate(file.uploadedAt)}</td>
@@ -368,18 +387,15 @@ function displayFiles(files, view, searchTerm = '') {
     }).join('');
 }
 
-// Handle file double-click
-function handleFileDoubleClick(fileId, fileName, isTextFile, isOfficeFile) {
-    console.log('Double-click:', fileName, 'Text:', isTextFile, 'Office:', isOfficeFile);
+// Handle file double-click - UPDATED
+function handleFileDoubleClick(fileId, fileName, canView) {
+    console.log('Double-click:', fileName, 'Can view:', canView);
     
-    if (isTextFile) {
-        // Text file - Open in modal editor
-        editFile(fileId);
-    } else if (isOfficeFile) {
-        // Office file - Open in viewer
+    if (canView) {
+        // Can view - open in viewer
         openOfficeFile(fileId, fileName);
     } else {
-        // Binary file - Just download
+        // Cannot view - download
         const confirmDownload = confirm(`📄 "${fileName}" không thể xem trực tiếp.\n\nBạn có muốn tải về không?`);
         if (confirmDownload) {
             downloadFile(fileId, fileName);
@@ -393,10 +409,12 @@ function searchFiles() {
     const searchTerm = searchInput.value.toLowerCase().trim();
 
     if (!searchTerm) {
+        // No search term, show all files
         displayFiles(allFiles, currentView);
         return;
     }
 
+    // Filter files by multiple criteria
     const filteredFiles = allFiles.filter(file => {
         const nameMatch = file.originalName.toLowerCase().includes(searchTerm);
         const ownerMatch = file.owner?.username?.toLowerCase().includes(searchTerm);
@@ -405,13 +423,17 @@ function searchFiles() {
         return nameMatch || ownerMatch || dateMatch;
     });
 
+    // Display filtered results with highlight
     displayFiles(filteredFiles, currentView, searchTerm);
+
+    // Log search for analytics (optional)
     console.log(`🔍 Search: "${searchTerm}" - Found: ${filteredFiles.length} files`);
 }
 
 // Helper function to highlight search term
 function highlightText(text, searchTerm) {
     if (!searchTerm) return text;
+    
     const regex = new RegExp(`(${searchTerm})`, 'gi');
     return text.replace(regex, '<span class="highlight">$1</span>');
 }
@@ -453,6 +475,7 @@ async function uploadFile() {
             alert('✅ File uploaded successfully!');
             fileInput.value = '';
             
+            // Update storage display
             if (data.storageInfo) {
                 updateStorageDisplay(data.storageInfo);
             }
@@ -508,9 +531,12 @@ async function editFile(fileId) {
         const data = await response.json();
 
         if (data.success) {
+            // Check file type
             if (data.fileType === 'office') {
+                // Office file - Open in Office Online
                 openOfficeFile(fileId, data.file.originalName);
             } else if (data.fileType === 'text' && data.file.canEdit) {
+                // Text file - Open in modal
                 currentEditingFileId = fileId;
                 document.getElementById('fileContentEditor').value = data.file.content;
                 document.getElementById('editModal').classList.add('active');
@@ -527,96 +553,95 @@ async function editFile(fileId) {
     }
 }
 
-// Open Office file in viewer
+// SIMPLE VERSION: Open Office file - Just download to browser
 async function openOfficeFile(fileId, fileName) {
     try {
-        console.log('Opening Office file:', fileName);
+        console.log('📂 Opening Office file:', fileName);
 
         // Show loading
         const loadingDiv = document.createElement('div');
-        loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 9999;';
+        loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 9999;';
         loadingDiv.innerHTML = '⏳ Đang tải file...';
         document.body.appendChild(loadingDiv);
 
-        // Get public link
-        const response = await fetch(`${API_URL}/files/public-link/${fileId}`, {
+        // Download file as blob
+        const response = await fetch(`${API_URL}/files/download/${fileId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
+        if (!response.ok) {
+            throw new Error(`Download failed: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
         document.body.removeChild(loadingDiv);
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.message || 'Failed to get file link');
-        }
-
-        console.log('✅ Public URL:', data.publicUrl);
-
-        // Determine file extension
         const ext = fileName.split('.').pop().toLowerCase();
-        let viewerUrl;
 
-        // Use Microsoft Office Online Viewer for Office files
-        if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
-            viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.publicUrl)}`;
-        } 
-        // Use Mozilla PDF.js for PDF
-        else if (ext === 'pdf') {
-            viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(data.publicUrl)}`;
-        }
-        // Fallback to Google Docs Viewer
-        else {
-            viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.publicUrl)}&embedded=true`;
-        }
-        
-        console.log('📺 Viewer URL:', viewerUrl);
-
-        // Open in new window
-        const width = 1200;
-        const height = 800;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-        
-        const newWindow = window.open(
-            viewerUrl, 
-            'FileViewer',
-            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,toolbar=yes`
-        );
-        
-        if (!newWindow) {
-            alert('⚠️ Popup bị chặn!\n\nVui lòng:\n1. Cho phép popup cho website này\n2. Thử lại');
-            return;
-        }
-
-        setTimeout(() => {
-            try {
-                if (newWindow.closed) {
-                    console.log('Viewer window was closed');
-                } else {
-                    console.log('✅ Viewer opened successfully');
-                }
-            } catch (e) {
-                console.log('Viewer opened (cross-origin)');
+        // ✅ PDF: Open in new tab (browser has built-in PDF viewer)
+        if (ext === 'pdf') {
+            const newWindow = window.open(blobUrl, '_blank');
+            if (!newWindow) {
+                alert('⚠️ Popup bị chặn! Cho phép popup để xem PDF.');
+            } else {
+                console.log('✅ PDF opened in new tab');
             }
-        }, 3000);
+        } 
+        // ✅ Office files: Download to device
+        else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+            const message = `📄 File "${fileName}" sẽ được tải về.\n\nSau khi tải xong, mở bằng Microsoft Office hoặc Google Docs để xem.`;
+            alert(message);
+            
+            // Trigger download
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            console.log('✅ Office file downloaded:', fileName);
+            
+            // Clean up blob URL after download
+            setTimeout(() => {
+                window.URL.revokeObjectURL(blobUrl);
+            }, 1000);
+        }
+        // Other files: just download
+        else {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            setTimeout(() => {
+                window.URL.revokeObjectURL(blobUrl);
+            }, 1000);
+        }
 
     } catch (error) {
-        console.error('Open Office file error:', error);
+        console.error('❌ Open Office file error:', error);
+        
+        // Remove loading if exists
+        const loadings = document.querySelectorAll('div');
+        loadings.forEach(div => {
+            if (div.textContent === '⏳ Đang tải file...') {
+                document.body.removeChild(div);
+            }
+        });
         
         let errorMsg = '❌ Không thể mở file!\n\n';
         
-        if (error.message.includes('Route not found')) {
-            errorMsg += '🔧 Lỗi backend: Route chưa được tạo.\n\nHướng dẫn sửa:\n1. Kiểm tra fileController.js\n2. Kiểm tra fileRoutes.js\n3. Restart server';
-        } else if (error.message.includes('Network')) {
-            errorMsg += '🌐 Lỗi kết nối.\n\nKiểm tra:\n1. Server đang chạy?\n2. BASE_URL trong .env đúng?';
+        if (error.message.includes('403')) {
+            errorMsg += '🔐 Bạn không có quyền truy cập file này.';
+        } else if (error.message.includes('404')) {
+            errorMsg += '📂 File không tồn tại.';
         } else {
-            errorMsg += `Chi tiết: ${error.message}\n\n💡 Thử download file về và mở bằng ứng dụng desktop.`;
+            errorMsg += `Chi tiết: ${error.message}`;
         }
         
         alert(errorMsg);
@@ -633,11 +658,13 @@ async function viewFile(fileId) {
         const data = await response.json();
 
         if (data.success && data.file.canEdit) {
+            // Show content in a modal or alert
             const modal = document.getElementById('editModal');
             document.getElementById('fileContentEditor').value = data.file.content;
-            document.getElementById('fileContentEditor').disabled = true;
+            document.getElementById('fileContentEditor').disabled = true; // Read-only
             modal.classList.add('active');
             
+            // Hide save button, show close button
             const saveBtn = modal.querySelector('.btn-primary');
             if (saveBtn) saveBtn.style.display = 'none';
         } else {
@@ -689,8 +716,8 @@ function closeEditModal() {
     const saveBtn = modal.querySelector('.btn-primary');
     
     modal.classList.remove('active');
-    editor.disabled = false;
-    if (saveBtn) saveBtn.style.display = 'block';
+    editor.disabled = false; // Reset to editable
+    if (saveBtn) saveBtn.style.display = 'block'; // Show save button again
     currentEditingFileId = null;
 }
 
