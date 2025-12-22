@@ -32,4 +32,19 @@ router.get('/public-link/:id', authMiddleware, fileController.getPublicLink);
 router.get('/temp-download/:id', fileController.tempDownload);
 
 
+// Handle OPTIONS for CORS preflight
+router.options('/temp-download/:id', (req, res) => {
+    res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
+    });
+    res.sendStatus(200);
+});
+
+// Temporary download with token (NO AUTH - public với token)
+router.get('/temp-download/:id', fileController.tempDownload);
+
+
+
 module.exports = router;

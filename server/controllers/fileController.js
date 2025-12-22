@@ -487,12 +487,20 @@ exports.tempDownload = async (req, res) => {
         }
 
         // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired token'
+            });
+        }
 
         if (decoded.fileId !== fileId) {
             return res.status(403).json({
                 success: false,
-                message: 'Invalid token'
+                message: 'Token does not match file'
             });
         }
 
@@ -505,14 +513,25 @@ exports.tempDownload = async (req, res) => {
             });
         }
 
-        // Set headers for Office Online
-        res.set('Content-Type', file.mimeType);
-        res.set('Content-Disposition', `inline; filename="${file.originalName}"`);
-        res.set('Access-Control-Allow-Origin', '*');
+        console.log('✅ Temp download:', file.originalName, 'Size:', file.size);
+
+        // IMPORTANT: Set proper headers for Office viewers
+        res.set({
+            'Content-Type': file.mimeType,
+            'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalName)}"`,
+            'Content-Length': file.size,
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
+            'Access-Control-Expose-Headers': 'Content-Length, Content-Type',
+            'Cache-Control': 'public, max-age=3600',
+            'X-Content-Type-Options': 'nosniff'
+        });
+        
         res.send(file.data);
 
     } catch (error) {
-        console.error('Temp download error:', error);
+        console.error('❌ Temp download error:', error);
         res.status(500).json({
             success: false,
             message: 'Error downloading file',

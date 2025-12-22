@@ -564,23 +564,55 @@ async function openOfficeFile(fileId, fileName) {
 
         console.log('Public URL:', data.publicUrl);
 
-        // Use Google Docs Viewer
-        const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.publicUrl)}&embedded=true`;
+        // Determine file extension
+        const ext = fileName.split('.').pop().toLowerCase();
+        let viewerUrl;
+
+        // Use Microsoft Office Online Viewer for Office files
+        if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+            viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.publicUrl)}`;
+        } 
+        // Use Mozilla PDF.js for PDF
+        else if (ext === 'pdf') {
+            viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(data.publicUrl)}`;
+        }
+        // Fallback to Google Docs Viewer
+        else {
+            viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.publicUrl)}&embedded=true`;
+        }
         
         console.log('Viewer URL:', viewerUrl);
 
         // Open in new window
-        const newWindow = window.open(viewerUrl, 'FileViewer', 'width=1200,height=800,resizable=yes,scrollbars=yes');
+        const width = 1200;
+        const height = 800;
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+        
+        const newWindow = window.open(
+            viewerUrl, 
+            'FileViewer',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,toolbar=yes`
+        );
         
         if (!newWindow) {
-            alert('⚠️ Popup bị chặn!\n\nVui lòng cho phép popup cho website này và thử lại.');
+            alert('⚠️ Popup bị chặn!\n\nVui lòng:\n1. Cho phép popup cho website này\n2. Thử lại');
             return;
         }
 
-        // Notify user
+        // Check if viewer loaded successfully after 3 seconds
         setTimeout(() => {
-            alert(`✅ File "${fileName}" đã được mở!\n\n💡 Lưu ý:\n- Chỉ xem được, không sửa được\n- Nếu không hiển thị, hãy kiểm tra:\n  1. File đã upload đúng định dạng\n  2. Server có thể truy cập từ internet\n  3. Thử refresh lại trang viewer`);
-        }, 500);
+            try {
+                if (newWindow.closed) {
+                    console.log('Viewer window was closed');
+                } else {
+                    console.log('✅ Viewer opened successfully');
+                }
+            } catch (e) {
+                // Cross-origin, cannot check - assume success
+                console.log('Viewer opened (cross-origin)');
+            }
+        }, 3000);
 
     } catch (error) {
         console.error('Open Office file error:', error);
@@ -588,11 +620,11 @@ async function openOfficeFile(fileId, fileName) {
         let errorMsg = '❌ Không thể mở file!\n\n';
         
         if (error.message.includes('Route not found')) {
-            errorMsg += '🔧 Lỗi: Backend chưa có route xử lý.\n\nKiểm tra:\n1. File fileController.js có function getPublicLink?\n2. File fileRoutes.js có route /public-link/:id?\n3. Đã restart server?';
+            errorMsg += '🔧 Lỗi backend: Route chưa được tạo.\n\nHướng dẫn sửa:\n1. Kiểm tra fileController.js\n2. Kiểm tra fileRoutes.js\n3. Restart server';
         } else if (error.message.includes('Network')) {
-            errorMsg += '🌐 Lỗi kết nối mạng.\n\nKiểm tra:\n1. Server có đang chạy?\n2. URL trong .env đúng chưa?';
+            errorMsg += '🌐 Lỗi kết nối.\n\nKiểm tra:\n1. Server đang chạy?\n2. BASE_URL trong .env đúng?';
         } else {
-            errorMsg += `Chi tiết: ${error.message}`;
+            errorMsg += `Chi tiết: ${error.message}\n\n💡 Thử download file về và mở bằng ứng dụng desktop.`;
         }
         
         alert(errorMsg);

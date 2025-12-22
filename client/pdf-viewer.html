@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #2d2d2d;
+        }
+        #pdf-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 30px;
+            color: white;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="pdf-container">
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+    
+    <div class="controls">
+        <button id="prev" disabled>← Prev</button>
+        <span id="page-info">Page <span id="page-num">1</span> / <span id="page-count">1</span></span>
+        <button id="next">Next →</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileUrl = urlParams.get('url');
+        
+        if (!fileUrl) {
+            document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:50px;">No PDF URL provided</h1>';
+        } else {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            
+            let pdfDoc = null;
+            let pageNum = 1;
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            async function renderPage(num) {
+                const page = await pdfDoc.getPage(num);
+                const viewport = page.getViewport({ scale: 1.5 });
+                
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport
+                }).promise;
+                
+                document.getElementById('page-num').textContent = num;
+                document.getElementById('prev').disabled = num <= 1;
+                document.getElementById('next').disabled = num >= pdfDoc.numPages;
+            }
+            
+            async function loadPDF() {
+                try {
+                    pdfDoc = await pdfjsLib.getDocument(fileUrl).promise;
+                    document.getElementById('page-count').textContent = pdfDoc.numPages;
+                    renderPage(pageNum);
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    alert('Failed to load PDF: ' + error.message);
+                }
+            }
+            
+            document.getElementById('prev').addEventListener('click', () => {
+                if (pageNum > 1) {
+                    pageNum--;
+                    renderPage(pageNum);
+                }
+            });
+            
+            document.getElementById('next').addEventListener('click', () => {
+                if (pageNum < pdfDoc.numPages) {
+                    pageNum++;
+                    renderPage(pageNum);
+                }
+            });
+            
+            loadPDF();
+        }
+    </script>
+</body>
+</html>
