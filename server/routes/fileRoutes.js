@@ -25,4 +25,11 @@ router.put('/restore/:id', authMiddleware, fileController.restoreFile);
 router.delete('/permanent/:id', authMiddleware, fileController.deletePermanently);
 router.post('/share/:id', authMiddleware, fileController.shareFile);
 
+// Get public link for Office files
+router.get('/public-link/:id', authMiddleware, fileController.getPublicLink);
+
+// Temporary download with token (NO AUTH - public với token)
+router.get('/temp-download/:id', fileController.tempDownload);
+
+
 module.exports = router;

@@ -24,6 +24,10 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
+app.use(cors({
+    origin: '*', // Cho phép mọi origin (production nên giới hạn)
+    credentials: true
+}));
 // 2. CORS - Configure properly
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
