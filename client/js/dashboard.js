@@ -1,5 +1,9 @@
-// API Config
-const API_URL = 'http://localhost:5500/api';
+// ✅ API Config - Auto-detect production or local
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5500/api'
+    : 'https://files-storage-c4s8.onrender.com/api';
+
+console.log('🌐 API URL:', API_URL);
 
 // Global variables
 let currentView = 'myfiles';
@@ -389,12 +393,10 @@ function searchFiles() {
     const searchTerm = searchInput.value.toLowerCase().trim();
 
     if (!searchTerm) {
-        // No search term, show all files
         displayFiles(allFiles, currentView);
         return;
     }
 
-    // Filter files by multiple criteria
     const filteredFiles = allFiles.filter(file => {
         const nameMatch = file.originalName.toLowerCase().includes(searchTerm);
         const ownerMatch = file.owner?.username?.toLowerCase().includes(searchTerm);
@@ -403,17 +405,13 @@ function searchFiles() {
         return nameMatch || ownerMatch || dateMatch;
     });
 
-    // Display filtered results with highlight
     displayFiles(filteredFiles, currentView, searchTerm);
-
-    // Log search for analytics (optional)
     console.log(`🔍 Search: "${searchTerm}" - Found: ${filteredFiles.length} files`);
 }
 
 // Helper function to highlight search term
 function highlightText(text, searchTerm) {
     if (!searchTerm) return text;
-    
     const regex = new RegExp(`(${searchTerm})`, 'gi');
     return text.replace(regex, '<span class="highlight">$1</span>');
 }
@@ -455,7 +453,6 @@ async function uploadFile() {
             alert('✅ File uploaded successfully!');
             fileInput.value = '';
             
-            // Update storage display
             if (data.storageInfo) {
                 updateStorageDisplay(data.storageInfo);
             }
@@ -511,12 +508,9 @@ async function editFile(fileId) {
         const data = await response.json();
 
         if (data.success) {
-            // Check file type
             if (data.fileType === 'office') {
-                // Office file - Open in Office Online
                 openOfficeFile(fileId, data.file.originalName);
             } else if (data.fileType === 'text' && data.file.canEdit) {
-                // Text file - Open in modal
                 currentEditingFileId = fileId;
                 document.getElementById('fileContentEditor').value = data.file.content;
                 document.getElementById('editModal').classList.add('active');
@@ -562,7 +556,7 @@ async function openOfficeFile(fileId, fileName) {
             throw new Error(data.message || 'Failed to get file link');
         }
 
-        console.log('Public URL:', data.publicUrl);
+        console.log('✅ Public URL:', data.publicUrl);
 
         // Determine file extension
         const ext = fileName.split('.').pop().toLowerCase();
@@ -581,7 +575,7 @@ async function openOfficeFile(fileId, fileName) {
             viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(data.publicUrl)}&embedded=true`;
         }
         
-        console.log('Viewer URL:', viewerUrl);
+        console.log('📺 Viewer URL:', viewerUrl);
 
         // Open in new window
         const width = 1200;
@@ -600,7 +594,6 @@ async function openOfficeFile(fileId, fileName) {
             return;
         }
 
-        // Check if viewer loaded successfully after 3 seconds
         setTimeout(() => {
             try {
                 if (newWindow.closed) {
@@ -609,7 +602,6 @@ async function openOfficeFile(fileId, fileName) {
                     console.log('✅ Viewer opened successfully');
                 }
             } catch (e) {
-                // Cross-origin, cannot check - assume success
                 console.log('Viewer opened (cross-origin)');
             }
         }, 3000);
@@ -641,13 +633,11 @@ async function viewFile(fileId) {
         const data = await response.json();
 
         if (data.success && data.file.canEdit) {
-            // Show content in a modal or alert
             const modal = document.getElementById('editModal');
             document.getElementById('fileContentEditor').value = data.file.content;
-            document.getElementById('fileContentEditor').disabled = true; // Read-only
+            document.getElementById('fileContentEditor').disabled = true;
             modal.classList.add('active');
             
-            // Hide save button, show close button
             const saveBtn = modal.querySelector('.btn-primary');
             if (saveBtn) saveBtn.style.display = 'none';
         } else {
@@ -699,8 +689,8 @@ function closeEditModal() {
     const saveBtn = modal.querySelector('.btn-primary');
     
     modal.classList.remove('active');
-    editor.disabled = false; // Reset to editable
-    if (saveBtn) saveBtn.style.display = 'block'; // Show save button again
+    editor.disabled = false;
+    if (saveBtn) saveBtn.style.display = 'block';
     currentEditingFileId = null;
 }
 

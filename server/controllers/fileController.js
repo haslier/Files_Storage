@@ -428,43 +428,27 @@ exports.getPublicLink = async (req, res) => {
 
         // Generate temporary token (expires in 1 hour)
         const tempToken = jwt.sign(
-            { fileId: file._id, userId: req.userId },
+            { fileId: file._id.toString(), userId: req.userId },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
-        // Create public download URL
+        // ✅ FIX: Create public download URL - TRẢ VỀ publicUrl THAY VÌ viewerUrl
         const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5500}`;
         const publicUrl = `${baseUrl}/api/files/temp-download/${file._id}?token=${tempToken}`;
 
-        // Determine Office viewer URL
-        let viewerUrl;
-        const ext = file.originalName.split('.').pop().toLowerCase();
-        
-        if (ext === 'pdf') {
-            // PDF - can be viewed directly or with Google Docs
-            viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(publicUrl)}&embedded=true`;
-        } else if (['doc', 'docx'].includes(ext)) {
-            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
-        } else if (['xls', 'xlsx'].includes(ext)) {
-            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
-        } else if (['ppt', 'pptx'].includes(ext)) {
-            viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(publicUrl)}`;
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: 'Not an Office file or PDF'
-            });
-        }
+        console.log('✅ Generated public URL:', publicUrl);
 
+        // ✅ FIX: Return publicUrl field instead of viewerUrl
         res.json({
             success: true,
-            viewerUrl: viewerUrl,
-            expiresIn: '1 hour'
+            publicUrl: publicUrl,  // ✅ Dashboard.js đọc field này
+            fileName: file.originalName,
+            expiresIn: 3600 // seconds
         });
 
     } catch (error) {
-        console.error('Get public link error:', error);
+        console.error('❌ Get public link error:', error);
         res.status(500).json({
             success: false,
             message: 'Error generating public link',
