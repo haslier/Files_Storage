@@ -377,7 +377,7 @@ function displayFiles(files, view, searchTerm = '') {
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span>${fileIcon}</span>
                         <span>${searchTerm ? highlightText(file.originalName, searchTerm) : file.originalName}</span>
-                        ${!canView ? '<span style="font-size: 11px; color: #999;">(Tải về để xem)</span>' : ''}
+                        ${!canView ? '<span style="font-size: 11px; color: #999;"></span>' : ''}
                     </div>
                 </td>
                 <td>${formatDate(file.uploadedAt)}</td>
