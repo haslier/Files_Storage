@@ -107,7 +107,7 @@ exports.uploadFile = async (req, res) => {
             const storageInfo = user.getStorageInfo();
             return res.status(413).json({
                 success: false,
-                message: `❌ Không đủ dung lượng! Bạn đã dùng ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
+                message: `❌ Not enough storage space! You have used ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
                 storageInfo: storageInfo
             });
         }
@@ -463,7 +463,7 @@ exports.tempDownload = async (req, res) => {
         const { token } = req.query;
         const fileId = req.params.id;
 
-        console.log('📥 Temp download request:', {
+        console.log(' Temp download request:', {
             fileId,
             hasToken: !!token,
             origin: req.headers.origin,
@@ -849,7 +849,7 @@ exports.updateFile = async (req, res) => {
             const storageInfo = user.getStorageInfo();
             return res.status(413).json({
                 success: false,
-                message: `❌ Không đủ dung lượng! Bạn đã dùng ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
+                message: `❌ Not enough storage space! You have used ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
                 storageInfo: storageInfo
             });
         }

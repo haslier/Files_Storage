@@ -141,7 +141,7 @@ async function loadStorageInfo() {
 
     } catch (error) {
         console.error('Load storage error:', error);
-        document.getElementById('storageText').textContent = 'Không thể tải';
+        document.getElementById('storageText').textContent = 'Can not load';
     }
 }
 
@@ -243,7 +243,7 @@ function displayFiles(files, view, searchTerm = '') {
 
     if (!files || files.length === 0) {
         const message = searchTerm 
-            ? `🔍 Không tìm thấy kết quả cho "${searchTerm}"` 
+            ? `🔍 Can not find results for "${searchTerm}"` 
             : '📁 No files found';
         
         filesTableBody.innerHTML = `
@@ -362,12 +362,12 @@ function displayFiles(files, view, searchTerm = '') {
         else if (ext === 'pdf') fileIcon = '📕';
         else if (['doc', 'docx'].includes(ext)) fileIcon = '📘';
         else if (['xls', 'xlsx'].includes(ext)) fileIcon = '📊';
-        else if (['ppt', 'pptx'].includes(ext)) fileIcon = '📊';
+        else if (['ppt', 'pptx'].includes(ext)) fileIcon = '📽️';
         else if (['zip', 'rar'].includes(ext)) fileIcon = '📦';
         else if (['txt', 'log', 'md'].includes(ext)) fileIcon = '📝';
 
         // Double-click action message
-        let doubleClickMsg = canView ? 'Double-click để xem file' : 'Double-click để tải về';
+        let doubleClickMsg = canView ? 'Double-click to view file' : 'Double-click to download';
 
         return `
             <tr ondblclick="handleFileDoubleClick('${file._id}', '${file.originalName.replace(/'/g, "\\'")}', ${canView})" 
@@ -401,7 +401,7 @@ function handleFileDoubleClick(fileId, fileName, canView) {
         openOfficeFile(fileId, fileName);
     } else {
         // Cannot view - download
-        const confirmDownload = confirm(`📄 "${fileName}" không thể xem trực tiếp.\n\nBạn có muốn tải về không?`);
+        const confirmDownload = confirm(`📄 "${fileName}" Cannot be viewed directly.\n\nDo you want to download it?`);
         if (confirmDownload) {
             downloadFile(fileId, fileName);
         }
@@ -495,7 +495,7 @@ async function uploadFile() {
         alert('❌ Upload failed: ' + error.message);
     } finally {
         uploadButton.disabled = false;
-        uploadButton.textContent = '📤 Upload';
+        uploadButton.textContent = 'Upload';
     }
 }
 
@@ -566,7 +566,7 @@ async function openOfficeFile(fileId, fileName) {
         // Show loading
         const loadingDiv = document.createElement('div');
         loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 9999;';
-        loadingDiv.innerHTML = '⏳ Đang tải file...';
+        loadingDiv.innerHTML = '⏳ Loading...';
         document.body.appendChild(loadingDiv);
 
         // Download file as blob
@@ -589,14 +589,14 @@ async function openOfficeFile(fileId, fileName) {
         if (ext === 'pdf') {
             const newWindow = window.open(blobUrl, '_blank');
             if (!newWindow) {
-                alert('⚠️ Popup bị chặn! Cho phép popup để xem PDF.');
+                alert('⚠️ Popup blocked! Please allow popups to view PDF.');
             } else {
                 console.log('✅ PDF opened in new tab');
             }
         } 
         // ✅ Office files: Download to device
         else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
-            const message = `📄 File "${fileName}" sẽ được tải về.\n\nSau khi tải xong, mở bằng Microsoft Office hoặc Google Docs để xem.`;
+            const message = `📄 File "${fileName}" will be downloaded.\n\nAfter downloading, open it with Microsoft Office or Google Docs to view.`;
             alert(message);
             
             // Trigger download
@@ -634,19 +634,19 @@ async function openOfficeFile(fileId, fileName) {
         // Remove loading if exists
         const loadings = document.querySelectorAll('div');
         loadings.forEach(div => {
-            if (div.textContent === '⏳ Đang tải file...') {
+            if (div.textContent === '⏳ Loading...') {
                 document.body.removeChild(div);
             }
         });
         
-        let errorMsg = '❌ Không thể mở file!\n\n';
+        let errorMsg = '❌ Cannot open file!\n\n';
         
         if (error.message.includes('403')) {
-            errorMsg += '🔐 Bạn không có quyền truy cập file này.';
+            errorMsg += '🔐 You do not have permission to access this file.';
         } else if (error.message.includes('404')) {
-            errorMsg += '📂 File không tồn tại.';
+            errorMsg += '📂 File does not exist.';
         } else {
-            errorMsg += `Chi tiết: ${error.message}`;
+            errorMsg += `Details: ${error.message}`;
         }
         
         alert(errorMsg);

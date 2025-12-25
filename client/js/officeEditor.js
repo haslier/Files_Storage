@@ -59,19 +59,19 @@ async function openOfficeFile(fileId, fileName) {
         closeFileViewer();
         
         if (error.message === 'FILE_NOT_VIEWABLE') {
-            const download = confirm(`📄 "${fileName}" không thể xem trực tiếp.\n\nBạn có muốn tải về không?`);
+            const download = confirm(`📄 "${fileName}" cannot be viewed directly.\n\nDo you want to download it?`);
             if (download) {
                 downloadFile(fileId, fileName);
             }
         } else {
-            let errorMsg = '❌ Không thể mở file!\n\n';
+            let errorMsg = '❌ Cannot open file!\n\n';
             
             if (error.message.includes('403')) {
-                errorMsg += '🔐 Bạn không có quyền truy cập.';
+                errorMsg += '🔐 You do not have permission to access this file.';
             } else if (error.message.includes('404')) {
-                errorMsg += '📂 File không tồn tại.';
+                errorMsg += '📂 File does not exist.';
             } else {
-                errorMsg += `Chi tiết: ${error.message}\n\n💡 Thử tải file về để xem.`;
+                errorMsg += `Details: ${error.message}\n\n💡 Try downloading the file to view.`;
             }
             
             alert(errorMsg);
@@ -89,7 +89,7 @@ async function loadWordViewer(blob, fileName) {
         const html = result.value;
         
         if (!html || html.trim() === '') {
-            throw new Error('File rỗng hoặc không thể đọc');
+            throw new Error('File is empty or cannot be read');
         }
         
         // Create simple HTML viewer
@@ -106,7 +106,7 @@ async function loadWordViewer(blob, fileName) {
         
     } catch (error) {
         console.error('❌ Load Word error:', error);
-        throw new Error('Không thể đọc file Word. File có thể bị lỗi hoặc được mã hóa.');
+        throw new Error('Cannot read Word file. File may be corrupted or encrypted.');
     }
 }
 
@@ -165,7 +165,7 @@ async function loadExcelViewer(blob, fileName) {
         
     } catch (error) {
         console.error('❌ Load Excel error:', error);
-        throw new Error('Không thể đọc file Excel. File có thể bị lỗi.');
+        throw new Error('Cannot read Excel file. File may be corrupted.');
     }
 }
 
@@ -219,15 +219,13 @@ function loadPowerPointViewer(blob, fileName) {
     
     viewerBody.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; background: #f5f5f5;">
-            <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
+            <div style="font-size: 64px; margin-bottom: 20px;">📽️</div>
             <h2 style="margin-bottom: 10px; color: #2c3e50;">${fileName}</h2>
             <p style="color: #666; margin-bottom: 30px; max-width: 500px;">
-                PowerPoint files không thể xem trực tiếp trong trình duyệt.<br>
-                Vui lòng tải file về để xem bằng Microsoft PowerPoint, Google Slides, hoặc LibreOffice.
+                PowerPoint files can not be viewed directly in the browser.<br>
+                Please download the file to view it with Microsoft PowerPoint, Google Slides, or LibreOffice.
             </p>
-            <button onclick="downloadCurrentFile()" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                ⬇️ Tải về ngay
-            </button>
+            
         </div>
     `;
     
@@ -252,7 +250,7 @@ ${text}
         
     } catch (error) {
         console.error('❌ Load text error:', error);
-        throw new Error('Không thể đọc file text.');
+        throw new Error('Cannot read text file.');
     }
 }
 
@@ -304,7 +302,7 @@ function closeFileViewer() {
 // Download current viewing file
 function downloadCurrentFile() {
     if (!currentViewingFile) {
-        alert('❌ Không có file để tải!');
+        alert('❌ No file to download!');
         return;
     }
 

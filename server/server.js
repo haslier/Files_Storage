@@ -101,30 +101,63 @@ const apiLimiter = rateLimit({
     }
 });
 
-const authLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 5, // Limit each IP to 5 login attempts per 5 minutes
-    message: {
-        success: false,
-        message: '❌ Bạn đã nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau 5 phút.',
-        retryAfter: 5 * 60 // seconds
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipSuccessfulRequests: true, // Không đếm request thành công
-    handler: (req, res) => {
-        const retryAfter = Math.ceil((req.rateLimit.resetTime - Date.now()) / 1000);
+// Bộ nhớ tạm để lưu số lần sai và thời gian mở khóa
+const loginAttempts = new Map(); 
+
+const authLimiter = (req, res, next) => {
+    const ip = req.ip; // Lấy IP người dùng
+    const WINDOW_MS = 5 * 60 * 1000; // 5 phút
+    const MAX_ATTEMPTS = 5; // Tối đa 5 lần sai
+
+    const now = Date.now();
+    const record = loginAttempts.get(ip) || { count: 0, unlockTime: 0 };
+
+    // 1. Kiểm tra xem IP có đang bị khóa không
+    if (record.unlockTime > now) {
+        const retryAfter = Math.ceil((record.unlockTime - now) / 1000);
         const minutes = Math.floor(retryAfter / 60);
         const seconds = retryAfter % 60;
-        
-        res.status(429).json({
+
+        return res.status(429).json({
             success: false,
-            message: `❌ Bạn đã nhập sai mật khẩu quá 5 lần. Vui lòng thử lại sau ${minutes} phút ${seconds} giây.`,
+            message: `❌ You have entered the wrong password too many times. Please try again after ${minutes} minutes ${seconds} seconds.`,
             retryAfter: retryAfter,
-            lockedUntil: new Date(req.rateLimit.resetTime).toISOString()
+            lockedUntil: new Date(record.unlockTime).toISOString()
         });
     }
-});
+
+    // Nếu đã hết thời gian khóa, reset lại bộ đếm
+    if (record.unlockTime !== 0 && record.unlockTime < now) {
+        loginAttempts.delete(ip);
+    }
+
+    // 2. Ghi đè phương thức res.json để bắt sự kiện đăng nhập sai
+    // (Đây là kỹ thuật "Monkey Patching" để đếm số lần sai sau khi controller xử lý xong)
+    const originalJson = res.json;
+    res.json = function (body) {
+        // Giả sử logic của bạn: Nếu success: false thì là đăng nhập sai
+        // Hoặc bạn có thể check theo res.statusCode !== 200
+        if (body.success === false) { 
+            const currentRecord = loginAttempts.get(ip) || { count: 0, unlockTime: 0 };
+            currentRecord.count += 1;
+
+            // Nếu chạm ngưỡng 5 lần sai -> Set thời gian khóa 5 phút TỪ LÚC NÀY
+            if (currentRecord.count >= MAX_ATTEMPTS) {
+                currentRecord.unlockTime = Date.now() + WINDOW_MS;
+            }
+            
+            loginAttempts.set(ip, currentRecord);
+        } else {
+            // Nếu đăng nhập thành công -> Xóa bộ đếm của IP này
+            loginAttempts.delete(ip);
+        }
+
+        // Trả về response gốc
+        return originalJson.call(this, body);
+    };
+
+    next();
+};
 
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
@@ -145,7 +178,7 @@ app.use('/api/auth/login', authLimiter); // ← CHỈ GIỮ CÁI NÀY
 // app.use('/api/auth/register', authLimiter); // ← ĐÃ TẮT
 // app.use('/api/files/upload', uploadLimiter); // ← ĐÃ TẮT
 
-console.log('🔒 Login rate limit ENABLED: 5 lần sai → Khóa 5 phút');
+console.log('🔒 Login rate limit ENABLED: 5 incorrect attempts → 5-minute lockout');
 
 // =========================
 // LOGGING MIDDLEWARE

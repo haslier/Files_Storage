@@ -90,7 +90,7 @@ async function handleLogin(event) {
                 const retryAfter = data.retryAfter || 300;
                 const minutes = Math.floor(retryAfter / 60);
                 const seconds = retryAfter % 60;
-                alert(`❌ ${data.message}\n\nVui lòng đợi ${minutes} phút ${seconds} giây.`);
+                alert(`❌ ${data.message}\n\nPlease wait ${minutes} minutes ${seconds} seconds`);
             } else {
                 alert('❌ ' + data.message);
             }
@@ -120,7 +120,7 @@ async function handleRegister(event) {
     }
 
     if (!allValid) {
-        alert('❌ Mật khẩu chưa đủ mạnh. Vui lòng kiểm tra các yêu cầu.');
+        alert('❌ The password is not strong enough. Please check the requirements.');
         return;
     }
 
