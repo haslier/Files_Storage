@@ -2,9 +2,9 @@ const File = require('../models/File');
 const multer = require('multer');
 const { logAction } = require('../middleware/auditLogger');
 const path = require('path');
-const jwt = require('jsonwebtoken');
+const fileEncryption = require('../utils/encryption'); // Import encryption
 
-// File type whitelist - THÊM PDF
+// File type whitelist (Danh sách cho phép)
 const allowedMimeTypes = [
     'text/plain',
     'text/html',
@@ -19,13 +19,17 @@ const allowedMimeTypes = [
     'image/png',
     'image/gif',
     'image/webp',
-    'application/pdf', // PDF
-    'application/msword', // .doc
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-    'application/vnd.ms-excel', // .xls
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-    'application/vnd.ms-powerpoint', // .ppt
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    'application/pdf',
+    // Word
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Excel
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // ✅ THÊM: PowerPoint
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Compressed
     'application/zip',
     'application/x-rar-compressed'
 ];
@@ -34,30 +38,26 @@ const allowedMimeTypes = [
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-    console.log('🔎 Upload attempt:', {
-        filename: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size
-    });
-    
-    // Check MIME type
+    // 1. Kiểm tra MIME type
     if (!allowedMimeTypes.includes(file.mimetype)) {
-        console.log('❌ MIME type not allowed:', file.mimetype);
         return cb(new Error(`File type not allowed: ${file.mimetype}`), false);
     }
     
-    // Check file extension
+    // 2. Kiểm tra đuôi file (Extension)
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = ['.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.csv', 
-                         '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', 
-                         '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.rar'];
+    const allowedExts = [
+        '.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.csv', 
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', 
+        '.doc', '.docx', 
+        '.xls', '.xlsx', 
+        '.ppt', '.pptx', // ✅ THÊM: Đuôi file PowerPoint
+        '.zip', '.rar'
+    ];
     
     if (!allowedExts.includes(ext)) {
-        console.log('❌ Extension not allowed:', ext);
-        return cb(new Error(`File extension not allowed: ${ext}`), false);
+        return cb(new Error('File extension not allowed'), false);
     }
     
-    console.log('✅ File type allowed');
     cb(null, true);
 };
 
@@ -65,80 +65,73 @@ const upload = multer({
     storage: storage,
     limits: { 
         fileSize: 16 * 1024 * 1024, // 16MB
-        files: 1 // Only 1 file per request
+        files: 1 // Chỉ cho phép upload 1 file mỗi lần
     },
     fileFilter: fileFilter
 });
 
 exports.upload = upload;
 
+
 // UPLOAD FILE
 exports.uploadFile = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({
-                success: false,
-                message: 'No file uploaded'
-            });
+            return res.status(400).json({ success: false, message: 'No file uploaded' });
         }
 
-        // Additional security checks
+        req.file.originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+
+        
+
         if (req.file.size === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Empty file not allowed'
-            });
+            return res.status(400).json({ success: false, message: 'Empty file not allowed' });
         }
 
-        // Check storage limit
         const User = require('../models/User');
         const user = await User.findById(req.userId);
-
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const newStorageUsed = user.storageUsed + req.file.size;
+        // 🔐 MÃ HÓA DỮ LIỆU FILE
+        console.log('🔐 Đang mã hóa file trước khi lưu trữ...');
+        const startTime = Date.now();
+        
+        // Đảm bảo sử dụng hàm encrypt từ utils/encryption.js đã có của bạn
+        const encryptedData = fileEncryption.encrypt(req.file.buffer); 
+        const encryptionTime = Date.now() - startTime;
+
+        // Tính toán dung lượng sau khi mã hóa (thường sẽ lớn hơn một chút do IV và Padding)
+        const newStorageUsed = user.storageUsed + encryptedData.length;
 
         if (newStorageUsed > user.storageLimit) {
-            const storageInfo = user.getStorageInfo();
             return res.status(413).json({
                 success: false,
-                message: `❌ Not enough storage space! You have used ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
-                storageInfo: storageInfo
+                message: `❌ Không đủ dung lượng!`,
+                storageInfo: user.getStorageInfo()
             });
         }
 
+        // Tạo đối tượng file mới với dữ liệu ĐÃ MÃ HÓA
         const file = new File({
             filename: req.file.originalname,
             originalName: req.file.originalname,
-            data: req.file.buffer,
-            size: req.file.size,
+            data: encryptedData, // LƯU DỮ LIỆU ĐÃ MÃ HÓA
+            size: req.file.size, // Lưu kích thước gốc để hiển thị cho người dùng
             mimeType: req.file.mimetype,
             owner: req.userId,
-            status: 'active'
+            status: 'active',
+            encrypted: true      // Đánh dấu rõ ràng file đã được mã hóa
         });
 
         await file.save();
 
-        // Update user storage
+        // Cập nhật dung lượng người dùng dựa trên kích thước thực tế lưu trữ (encrypted size)
         user.storageUsed = newStorageUsed;
         await user.save();
 
-        // Log action
-        logAction(req.userId, 'FILE_UPLOADED', {
-            fileId: file._id,
-            fileName: file.originalName,
-            size: file.size,
-            mimeType: file.mimeType,
-            storageUsed: user.storageUsed,
-            storageLimit: user.storageLimit
-        });
-
-        console.log('✅ File uploaded:', file.originalName);
+        console.log(`✅ File uploaded & Encrypted: ${file.originalName} (${encryptionTime}ms)`);
 
         res.status(201).json({
             success: true,
@@ -146,28 +139,16 @@ exports.uploadFile = async (req, res) => {
             file: {
                 _id: file._id,
                 originalName: file.originalName,
-                size: file.size,
-                uploadedAt: file.uploadedAt
+                size: file.size
             },
             storageInfo: user.getStorageInfo()
         });
 
     } catch (error) {
         console.error('Upload error:', error);
-        
-        logAction(req.userId, 'FILE_UPLOAD_FAILED', {
-            error: error.message,
-            fileName: req.file?.originalname
-        });
-        
-        res.status(500).json({
-            success: false,
-            message: 'Error uploading file',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
     }
 };
-
 // GET MY FILES
 exports.getMyFiles = async (req, res) => {
     try {
@@ -271,39 +252,65 @@ exports.getBinFiles = async (req, res) => {
     }
 };
 
-// DOWNLOAD FILE
+// DOWNLOAD FILE (Bản sửa lỗi triệt để)
+// DOWNLOAD FILE (Đã sửa lỗi Corrupted/Binary Object)
 exports.downloadFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
 
         if (!file) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found'
-            });
+            return res.status(404).json({ success: false, message: 'File not found' });
         }
 
         const hasPermission = file.owner.toString() === req.userId ||
                             file.sharedWith.includes(req.userId);
 
         if (!hasPermission) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
+            return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
-        res.set('Content-Type', file.mimeType);
-        res.set('Content-Disposition', `attachment; filename="${file.originalName}"`);
-        res.send(file.data);
+        // --- BẮT ĐẦU SỬA ---
+        let fileData = file.data;
+
+        // 1. Ép kiểu về Buffer chuẩn (Quan trọng để tránh lỗi MongoDB Binary)
+        if (fileData && !Buffer.isBuffer(fileData)) {
+            // Nếu là MongoDB Binary object, chuyển nó về Buffer
+            if (fileData.buffer) {
+                fileData = fileData.buffer; 
+            } else {
+                fileData = Buffer.from(fileData);
+            }
+        }
+
+        // 2. Giải mã (Nếu file được đánh dấu là encrypted)
+        if (file.encrypted) {
+            try {
+                console.log(`🔓 Đang giải mã file: ${file.originalName}`);
+                // Lúc này fileData chắc chắn là Buffer, decrypt sẽ không bị lỗi
+                fileData = fileEncryption.decrypt(fileData);
+            } catch (err) {
+                console.error('❌ Lỗi giải mã:', err.message);
+                // Nếu giải mã lỗi, trả về lỗi 500 để client biết thay vì gửi file rác
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Không thể giải mã file. Key có thể không khớp.' 
+                });
+            }
+        }
+        // --- KẾT THÚC SỬA ---
+
+        // Thiết lập header chuẩn
+        res.set({
+            'Content-Type': file.mimeType,
+            'Content-Length': fileData.length, // Độ dài sau khi giải mã
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(file.originalName)}"`
+        });
+        
+        res.send(fileData);
 
     } catch (error) {
         console.error('Download error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error downloading file',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error downloading file' });
     }
 };
 
@@ -329,7 +336,7 @@ exports.viewFile = async (req, res) => {
             });
         }
 
-        // Check if file is text-based (editable in textarea)
+        // Check if file is editable (text-based)
         const textMimeTypes = [
             'text/plain',
             'text/html',
@@ -345,33 +352,6 @@ exports.viewFile = async (req, res) => {
         const isTextFile = textMimeTypes.includes(file.mimeType) || 
                           file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
 
-        // Check if file is Office format or PDF
-        const officeMimeTypes = [
-            'application/pdf', // PDF
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-            'application/msword', // .doc
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-            'application/vnd.ms-excel', // .xls
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-            'application/vnd.ms-powerpoint' // .ppt
-        ];
-
-        const isOfficeFile = officeMimeTypes.includes(file.mimeType) ||
-                            file.originalName.match(/\.(pdf|docx?|xlsx?|pptx?)$/i);
-
-        if (isOfficeFile) {
-            return res.json({
-                success: true,
-                fileType: 'office',
-                file: {
-                    _id: file._id,
-                    originalName: file.originalName,
-                    mimeType: file.mimeType,
-                    isOwner: file.owner.toString() === req.userId
-                }
-            });
-        }
-
         if (!isTextFile) {
             return res.status(400).json({
                 success: false,
@@ -380,16 +360,33 @@ exports.viewFile = async (req, res) => {
             });
         }
 
+        let fileData = file.data;
+
+        // 🔓 DECRYPT if encrypted
+        if (file.encrypted) {
+            console.log('🔓 Decrypting file for viewing...');
+            try {
+                fileData = fileEncryption.decrypt(file.data);
+                console.log('✅ File decrypted for viewing');
+            } catch (decryptError) {
+                console.error('❌ Decryption failed:', decryptError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to decrypt file'
+                });
+            }
+        }
+
         res.json({
             success: true,
-            fileType: 'text',
             file: {
                 _id: file._id,
                 originalName: file.originalName,
                 mimeType: file.mimeType,
-                content: file.data.toString('utf8'),
+                content: fileData.toString('utf8'),
                 isOwner: file.owner.toString() === req.userId,
-                canEdit: true
+                canEdit: true,
+                encrypted: file.encrypted
             }
         });
 
@@ -400,170 +397,6 @@ exports.viewFile = async (req, res) => {
             message: 'Error viewing file',
             error: error.message
         });
-    }
-};
-
-// GET PUBLIC LINK for Office Online Viewer
-exports.getPublicLink = async (req, res) => {
-    try {
-        const file = await File.findById(req.params.id);
-
-        if (!file) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found'
-            });
-        }
-
-        // Check permission
-        const hasPermission = file.owner.toString() === req.userId ||
-                            file.sharedWith.includes(req.userId);
-
-        if (!hasPermission) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
-
-        // Generate temporary token (expires in 1 hour)
-        const tempToken = jwt.sign(
-            { fileId: file._id.toString(), userId: req.userId },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        // ✅ FIX: Create public download URL - TRẢ VỀ publicUrl THAY VÌ viewerUrl
-        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5500}`;
-        const publicUrl = `${baseUrl}/api/files/temp-download/${file._id}?token=${tempToken}`;
-
-        console.log('✅ Generated public URL:', publicUrl);
-
-        // ✅ FIX: Return publicUrl field instead of viewerUrl
-        res.json({
-            success: true,
-            publicUrl: publicUrl,  // ✅ Dashboard.js đọc field này
-            fileName: file.originalName,
-            expiresIn: 3600 // seconds
-        });
-
-    } catch (error) {
-        console.error('❌ Get public link error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error generating public link',
-            error: error.message
-        });
-    }
-};
-
-// TEMP DOWNLOAD with token - FIXED VERSION with better CORS
-exports.tempDownload = async (req, res) => {
-    try {
-        const { token } = req.query;
-        const fileId = req.params.id;
-
-        console.log(' Temp download request:', {
-            fileId,
-            hasToken: !!token,
-            origin: req.headers.origin,
-            userAgent: req.headers['user-agent']?.substring(0, 50)
-        });
-
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Token required'
-            });
-        }
-
-        // Verify token
-        let decoded;
-        try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (err) {
-            console.log('❌ Token verification failed:', err.message);
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid or expired token'
-            });
-        }
-
-        if (decoded.fileId !== fileId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Token does not match file'
-            });
-        }
-
-        const file = await File.findById(fileId);
-
-        if (!file) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found'
-            });
-        }
-
-        console.log('✅ Serving file:', {
-            name: file.originalName,
-            size: file.size,
-            mimeType: file.mimeType
-        });
-
-        // ✅ CRITICAL: Set proper CORS headers for Google Docs Viewer
-        res.set({
-            'Content-Type': file.mimeType,
-            'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalName)}"`,
-            'Content-Length': file.size,
-            
-            // CORS headers - Allow ALL origins for viewers
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Range',
-            'Access-Control-Expose-Headers': 'Content-Length, Content-Type, Content-Range, Accept-Ranges',
-            
-            // Range requests support (for large files)
-            'Accept-Ranges': 'bytes',
-            
-            // Cache for 1 hour
-            'Cache-Control': 'public, max-age=3600',
-            
-            // Security headers
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'ALLOWALL' // Allow embedding in iframes
-        });
-        
-        // Handle range requests (for streaming large files)
-        const range = req.headers.range;
-        if (range) {
-            const parts = range.replace(/bytes=/, '').split('-');
-            const start = parseInt(parts[0], 10);
-            const end = parts[1] ? parseInt(parts[1], 10) : file.size - 1;
-            const chunksize = (end - start) + 1;
-            
-            res.status(206); // Partial Content
-            res.set('Content-Range', `bytes ${start}-${end}/${file.size}`);
-            res.set('Content-Length', chunksize);
-            
-            // Send partial data
-            const chunk = file.data.slice(start, end + 1);
-            return res.send(chunk);
-        }
-        
-        // Send complete file
-        res.send(file.data);
-
-    } catch (error) {
-        console.error('❌ Temp download error:', error);
-        
-        if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                message: 'Error downloading file',
-                error: error.message
-            });
-        }
     }
 };
 
@@ -611,50 +444,46 @@ exports.saveFile = async (req, res) => {
 };
 
 // DELETE (move to bin)
+// DELETE FILE (FULL QUYỀN: B xóa thì file cũng vào thùng rác như A xóa)
 exports.deleteFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
 
         if (!file) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found'
-            });
+            return res.status(404).json({ success: false, message: 'File not found' });
         }
 
-        if (file.owner.toString() !== req.userId) {
-            logAction(req.userId, 'FILE_DELETE_DENIED', {
-                fileId: req.params.id,
-                reason: 'Not owner'
-            });
-            
-            return res.status(403).json({
-                success: false,
-                message: 'Only owner can delete'
-            });
+        const userId = req.userId;
+
+        // KIỂM TRA QUYỀN: Chỉ cần là Owner HOẶC được Share là có quyền Xóa
+        const hasPermission = file.owner.toString() === userId || 
+                              file.sharedWith.includes(userId);
+
+        if (!hasPermission) {
+            return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa file này' });
         }
 
+        // THỰC HIỆN XÓA (Chuyển trạng thái sang bin)
+        // Hành động này ảnh hưởng đến tất cả mọi người (File biến mất khỏi Active)
         file.status = 'bin';
         file.deletedAt = new Date();
+        
+        // (Tùy chọn) Lưu vết ai là người xóa
+        // file.deletedBy = userId; 
+
         await file.save();
 
-        logAction(req.userId, 'FILE_MOVED_TO_BIN', {
+        logAction(userId, 'FILE_MOVED_TO_BIN', {
             fileId: file._id,
-            fileName: file.originalName
+            fileName: file.originalName,
+            deletedBy: userId
         });
 
-        res.json({
-            success: true,
-            message: 'File moved to bin'
-        });
+        res.json({ success: true, message: 'Đã chuyển file vào thùng rác' });
 
     } catch (error) {
         console.error('Delete error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error deleting file',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Lỗi khi xóa file', error: error.message });
     }
 };
 
@@ -798,108 +627,59 @@ exports.shareFile = async (req, res) => {
     }
 };
 
-// ============================================
-// ✅ NEW: UPDATE FILE FUNCTION
-// ============================================
+// 1. Cập nhật file (Dành cho Office Editor)
 exports.updateFile = async (req, res) => {
     try {
-        const fileId = req.params.id;
-        
-        if (!req.file) {
-            return res.status(400).json({
-                success: false,
-                message: 'No file uploaded'
-            });
-        }
+        const file = await File.findById(req.params.id);
+        if (!file) return res.status(404).json({ success: false, message: 'Không tìm thấy file' });
 
-        // Find existing file
-        const existingFile = await File.findById(fileId);
+        if (!req.file) return res.status(400).json({ success: false, message: 'Không có dữ liệu file mới' });
 
-        if (!existingFile) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found'
-            });
-        }
+        // Mã hóa dữ liệu mới trước khi lưu
+        const encryptedData = fileEncryption.encrypt(req.file.buffer);
 
-        // Check ownership
-        if (existingFile.owner.toString() !== req.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Only owner can update file'
-            });
-        }
+        file.data = encryptedData;
+        file.size = req.file.size;
+        file.lastModified = new Date();
+        await file.save();
 
-        // Update user storage
-        const User = require('../models/User');
-        const user = await User.findById(req.userId);
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Calculate new storage (remove old file size, add new file size)
-        const sizeDifference = req.file.size - existingFile.size;
-        const newStorageUsed = user.storageUsed + sizeDifference;
-
-        if (newStorageUsed > user.storageLimit) {
-            const storageInfo = user.getStorageInfo();
-            return res.status(413).json({
-                success: false,
-                message: `❌ Not enough storage space! You have used ${storageInfo.usedGB}GB / ${storageInfo.limitGB}GB`,
-                storageInfo: storageInfo
-            });
-        }
-
-        // Update file
-        existingFile.data = req.file.buffer;
-        existingFile.size = req.file.size;
-        existingFile.mimeType = req.file.mimetype;
-        existingFile.lastModified = new Date();
-        await existingFile.save();
-
-        // Update user storage
-        user.storageUsed = newStorageUsed;
-        await user.save();
-
-        // Log action
-        logAction(req.userId, 'FILE_UPDATED', {
-            fileId: existingFile._id,
-            fileName: existingFile.originalName,
-            oldSize: existingFile.size,
-            newSize: req.file.size,
-            storageUsed: user.storageUsed
-        });
-
-        console.log('✅ File updated:', existingFile.originalName);
-
-        res.json({
-            success: true,
-            message: 'File updated successfully',
-            file: {
-                _id: existingFile._id,
-                originalName: existingFile.originalName,
-                size: existingFile.size,
-                lastModified: existingFile.lastModified
-            },
-            storageInfo: user.getStorageInfo()
-        });
-
+        res.json({ success: true, message: 'Cập nhật nội dung file thành công' });
     } catch (error) {
-        console.error('❌ Update file error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 2. Tạo link công khai tạm thời
+exports.getPublicLink = async (req, res) => {
+    try {
+        const file = await File.findById(req.params.id);
+        if (!file) return res.status(404).json({ success: false, message: 'File not found' });
+
+        // URL này sẽ trỏ tới route temp-download không cần token auth
+        const downloadUrl = `${req.protocol}://${req.get('host')}/api/files/temp-download/${file._id}`;
         
-        logAction(req.userId, 'FILE_UPDATE_FAILED', {
-            error: error.message,
-            fileId: req.params.id
-        });
-        
-        res.status(500).json({
-            success: false,
-            message: 'Error updating file',
-            error: error.message
-        });
+        res.json({ success: true, downloadUrl });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 3. Tải file tạm thời (Không yêu cầu đăng nhập - dùng cho bộ xem tài liệu)
+exports.tempDownload = async (req, res) => {
+    try {
+        const file = await File.findById(req.params.id);
+        if (!file) return res.status(404).send('File không tồn tại');
+
+        let fileData = file.data;
+        // Giải mã nếu file đang ở trạng thái encrypted
+        if (file.encrypted) {
+            fileData = fileEncryption.decrypt(file.data);
+        }
+
+        res.set('Content-Type', file.mimeType);
+        res.set('Content-Disposition', `inline; filename="${file.originalName}"`);
+        res.send(fileData);
+    } catch (error) {
+        res.status(500).send('Lỗi khi xử lý file');
     }
 };

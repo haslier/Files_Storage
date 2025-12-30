@@ -293,28 +293,12 @@ function displayFiles(files, view, searchTerm = '') {
         return viewableTypes.includes(file.mimeType) || viewableExts.includes(ext);
     }
 
-    // Check if file is text (editable in simple textarea)
-    function isTextFile(file) {
-        const textMimeTypes = [
-            'text/plain',
-            'text/html',
-            'text/css',
-            'text/javascript',
-            'application/json',
-            'application/xml',
-            'text/xml',
-            'text/csv',
-            'text/markdown'
-        ];
-        
-        return textMimeTypes.includes(file.mimeType) || 
-               file.originalName.match(/\.(txt|js|json|html|css|md|xml|csv|log)$/i);
-    }
+    
 
     filesTableBody.innerHTML = files.map(file => {
         const isOwner = file.owner._id === userId || file.owner === userId;
         const canView = canViewFile(file);
-        const isText = isTextFile(file);
+        
         let actions = '';
 
         if (view === 'myfiles') {
@@ -322,11 +306,7 @@ function displayFiles(files, view, searchTerm = '') {
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
                 </button>
-                ${isText ? `
-                    <button class="action-btn edit-btn" onclick="editFile('${file._id}')">
-                        ✏️ Edit
-                    </button>
-                ` : ''}
+                
                 ${isOwner ? `
                     <button class="action-btn share-btn" onclick="shareFile('${file._id}')">
                         🔗 Share
@@ -558,98 +538,45 @@ async function editFile(fileId) {
     }
 }
 
-// SIMPLE VERSION: Open Office file - Just download to browser
 async function openOfficeFile(fileId, fileName) {
     try {
         console.log('📂 Opening Office file:', fileName);
-
-        // Show loading
-        const loadingDiv = document.createElement('div');
-        loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 9999;';
-        loadingDiv.innerHTML = '⏳ Loading...';
-        document.body.appendChild(loadingDiv);
-
-        // Download file as blob
-        const response = await fetch(`${API_URL}/files/download/${fileId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Download failed: ${response.status}`);
-        }
-
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        document.body.removeChild(loadingDiv);
-
         const ext = fileName.split('.').pop().toLowerCase();
 
-        // ✅ PDF: Open in new tab (browser has built-in PDF viewer)
+        // 1. Nếu là PDF, mở bằng trình duyệt như cũ
         if (ext === 'pdf') {
-            const newWindow = window.open(blobUrl, '_blank');
-            if (!newWindow) {
-                alert('⚠️ Popup blocked! Please allow popups to view PDF.');
-            } else {
-                console.log('✅ PDF opened in new tab');
-            }
-        } 
-        // ✅ Office files: Download to device
-        else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
-            const message = `📄 File "${fileName}" will be downloaded.\n\nAfter downloading, open it with Microsoft Office or Google Docs to view.`;
-            alert(message);
-            
-            // Trigger download
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            console.log('✅ Office file downloaded:', fileName);
-            
-            // Clean up blob URL after download
-            setTimeout(() => {
-                window.URL.revokeObjectURL(blobUrl);
-            }, 1000);
+            const response = await fetch(`${API_URL}/files/download/${fileId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+            return;
         }
-        // Other files: just download
-        else {
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            setTimeout(() => {
-                window.URL.revokeObjectURL(blobUrl);
-            }, 1000);
+
+        // 2. Nếu là Word/Excel/PPT: Sử dụng Public Link + Google Viewer
+        if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+            // Lấy link công khai tạm thời từ Server (Hàm public-link bạn đã viết ở Controller)
+            const response = await fetch(`${API_URL}/files/public-link/${fileId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Mở qua Google Docs Viewer
+                const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(data.downloadUrl)}&embedded=true`;
+                window.open(viewerUrl, '_blank');
+            } else {
+                throw new Error(data.message || 'Cannot generate preview link');
+            }
+        } else {
+            // Các file khác thì tải về máy
+            downloadFile(fileId, fileName);
         }
 
     } catch (error) {
         console.error('❌ Open Office file error:', error);
-        
-        // Remove loading if exists
-        const loadings = document.querySelectorAll('div');
-        loadings.forEach(div => {
-            if (div.textContent === '⏳ Loading...') {
-                document.body.removeChild(div);
-            }
-        });
-        
-        let errorMsg = '❌ Cannot open file!\n\n';
-        
-        if (error.message.includes('403')) {
-            errorMsg += '🔐 You do not have permission to access this file.';
-        } else if (error.message.includes('404')) {
-            errorMsg += '📂 File does not exist.';
-        } else {
-            errorMsg += `Details: ${error.message}`;
-        }
-        
-        alert(errorMsg);
+        alert('❌ Lỗi: ' + error.message);
     }
 }
 
