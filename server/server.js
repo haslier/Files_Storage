@@ -63,6 +63,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ✅ Additional CORS middleware for temp-download route
 app.use('/api/files/temp-download', (req, res, next) => {
