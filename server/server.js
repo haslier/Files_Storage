@@ -36,7 +36,7 @@ const corsOptions = {
         const allowedOrigins = [
             'http://localhost:5500',
             'http://127.0.0.1:5500',
-            'https://files-storage-c4s8.onrender.com'
+            'https://files-storage-2.onrender.com'
         ];
         
         // Allow Google Docs Viewer, Microsoft Office Viewer, PDF.js
