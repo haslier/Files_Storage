@@ -13,7 +13,7 @@ const fileSchema = new mongoose.Schema({
     deletedAt: { type: Date },
     lastModified: { type: Date, default: Date.now },
 
-    // 🔥 QUAN TRỌNG: Phải thêm dòng này để Mongoose lưu trạng thái mã hóa
+    //  QUAN TRỌNG: Phải thêm dòng này để Mongoose lưu trạng thái mã hóa
     encrypted: { type: Boolean, default: false } 
 });
 

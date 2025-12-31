@@ -4,7 +4,7 @@ const { logAction } = require('../middleware/auditLogger');
 const path = require('path');
 const fileEncryption = require('../utils/encryption'); // Import encryption
 
-// File type whitelist (Danh sách cho phép)
+// Danh sách cho phép
 const allowedMimeTypes = [
     'text/plain',
     'text/html',
@@ -26,7 +26,7 @@ const allowedMimeTypes = [
     // Excel
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    // ✅ THÊM: PowerPoint
+    // PowerPoint
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     // Compressed
@@ -43,7 +43,7 @@ const fileFilter = (req, file, cb) => {
         return cb(new Error(`File type not allowed: ${file.mimetype}`), false);
     }
     
-    // 2. Kiểm tra đuôi file (Extension)
+    // 2. Kiểm tra đuôi file 
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedExts = [
         '.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.csv', 
@@ -94,8 +94,8 @@ exports.uploadFile = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // 🔐 MÃ HÓA DỮ LIỆU FILE
-        console.log('🔐 Đang mã hóa file trước khi lưu trữ...');
+        //  MÃ HÓA DỮ LIỆU FILE
+        console.log(' Encrypting file before storage...');
         const startTime = Date.now();
         
         // Đảm bảo sử dụng hàm encrypt từ utils/encryption.js đã có của bạn
@@ -108,7 +108,7 @@ exports.uploadFile = async (req, res) => {
         if (newStorageUsed > user.storageLimit) {
             return res.status(413).json({
                 success: false,
-                message: `❌ Không đủ dung lượng!`,
+                message: `❌ Not enough storage space!`,
                 storageInfo: user.getStorageInfo()
             });
         }
@@ -252,8 +252,7 @@ exports.getBinFiles = async (req, res) => {
     }
 };
 
-// DOWNLOAD FILE (Bản sửa lỗi triệt để)
-// DOWNLOAD FILE (Đã sửa lỗi Corrupted/Binary Object)
+
 exports.downloadFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
@@ -285,19 +284,19 @@ exports.downloadFile = async (req, res) => {
         // 2. Giải mã (Nếu file được đánh dấu là encrypted)
         if (file.encrypted) {
             try {
-                console.log(`🔓 Đang giải mã file: ${file.originalName}`);
+                console.log(` Decrypting file: ${file.originalName}`);
                 // Lúc này fileData chắc chắn là Buffer, decrypt sẽ không bị lỗi
                 fileData = fileEncryption.decrypt(fileData);
             } catch (err) {
-                console.error('❌ Lỗi giải mã:', err.message);
+                console.error('❌ Error decrypting file:', err.message);
                 // Nếu giải mã lỗi, trả về lỗi 500 để client biết thay vì gửi file rác
                 return res.status(500).json({ 
                     success: false, 
-                    message: 'Không thể giải mã file. Key có thể không khớp.' 
+                    message: 'Can not decrypt file. Key may not match.' 
                 });
             }
         }
-        // --- KẾT THÚC SỬA ---
+        
 
         // Thiết lập header chuẩn
         res.set({
@@ -362,9 +361,9 @@ exports.viewFile = async (req, res) => {
 
         let fileData = file.data;
 
-        // 🔓 DECRYPT if encrypted
+        //  DECRYPT if encrypted
         if (file.encrypted) {
-            console.log('🔓 Decrypting file for viewing...');
+            console.log(' Decrypting file for viewing...');
             try {
                 fileData = fileEncryption.decrypt(file.data);
                 console.log('✅ File decrypted for viewing');
@@ -444,7 +443,7 @@ exports.saveFile = async (req, res) => {
 };
 
 // DELETE (move to bin)
-// DELETE FILE (FULL QUYỀN: B xóa thì file cũng vào thùng rác như A xóa)
+
 exports.deleteFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
@@ -464,12 +463,12 @@ exports.deleteFile = async (req, res) => {
         }
 
         // THỰC HIỆN XÓA (Chuyển trạng thái sang bin)
-        // Hành động này ảnh hưởng đến tất cả mọi người (File biến mất khỏi Active)
+        
         file.status = 'bin';
         file.deletedAt = new Date();
         
         // (Tùy chọn) Lưu vết ai là người xóa
-        // file.deletedBy = userId; 
+         
 
         await file.save();
 
@@ -479,11 +478,11 @@ exports.deleteFile = async (req, res) => {
             deletedBy: userId
         });
 
-        res.json({ success: true, message: 'Đã chuyển file vào thùng rác' });
+        res.json({ success: true, message: 'Moving file into trash bin' });
 
     } catch (error) {
         console.error('Delete error:', error);
-        res.status(500).json({ success: false, message: 'Lỗi khi xóa file', error: error.message });
+        res.status(500).json({ success: false, message: 'Error deleting file', error: error.message });
     }
 };
 
@@ -631,9 +630,9 @@ exports.shareFile = async (req, res) => {
 exports.updateFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
-        if (!file) return res.status(404).json({ success: false, message: 'Không tìm thấy file' });
+        if (!file) return res.status(404).json({ success: false, message: 'Can not find file' });
 
-        if (!req.file) return res.status(400).json({ success: false, message: 'Không có dữ liệu file mới' });
+        if (!req.file) return res.status(400).json({ success: false, message: 'No new file data provided' });
 
         // Mã hóa dữ liệu mới trước khi lưu
         const encryptedData = fileEncryption.encrypt(req.file.buffer);
@@ -643,7 +642,7 @@ exports.updateFile = async (req, res) => {
         file.lastModified = new Date();
         await file.save();
 
-        res.json({ success: true, message: 'Cập nhật nội dung file thành công' });
+        res.json({ success: true, message: 'Update file content successfully' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -668,7 +667,7 @@ exports.getPublicLink = async (req, res) => {
 exports.tempDownload = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
-        if (!file) return res.status(404).send('File không tồn tại');
+        if (!file) return res.status(404).send('File not found');
 
         let fileData = file.data;
         // Giải mã nếu file đang ở trạng thái encrypted
@@ -680,6 +679,6 @@ exports.tempDownload = async (req, res) => {
         res.set('Content-Disposition', `inline; filename="${file.originalName}"`);
         res.send(fileData);
     } catch (error) {
-        res.status(500).send('Lỗi khi xử lý file');
+        res.status(500).send('Error processing file');
     }
 };
