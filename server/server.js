@@ -26,44 +26,32 @@ app.use(helmet({
 
 
 
-// ✅ ENHANCED CORS Configuration for Office Viewers
+// ✅ Cấu hình CORS tối ưu để fix lỗi đỏ trên Render
+const allowedOrigins = [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://files-storage-2.onrender.com'
+];
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
-        
-        // Allow localhost and production URL
-        const allowedOrigins = [
-            'http://localhost:5500',
-            'http://127.0.0.1:5500',
-            'https://files-storage-2.onrender.com'
-        ];
-        
-        // Allow Google Docs Viewer, Microsoft Office Viewer, PDF.js
-        const viewerDomains = [
-            'https://docs.google.com',
-            'https://view.officeapps.live.com',
-            'https://mozilla.github.io'
-        ];
-        
-        if (allowedOrigins.includes(origin) || 
-            viewerDomains.some(domain => origin?.startsWith(domain))) {
-            callback(null, true);
-        } else if (process.env.NODE_ENV === 'development') {
-            // In development, allow all origins
+        // Cho phép request không có origin hoặc nằm trong whitelist
+        if (!origin || allowedOrigins.includes(origin) || origin.includes('google.com') || origin.includes('officeapps.live.com')) {
             callback(null, true);
         } else {
+            console.log("CORS blocked origin:", origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
-    optionsSuccessStatus: 200,
-    exposedHeaders: ['Content-Length', 'Content-Type', 'Content-Range', 'Accept-Ranges'],
-    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'Range']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Range'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
+    optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptions)); // 🔥 BẮT BUỘC có dòng này để fix lỗi Preflight (OPTIONS)
 
 // ✅ Additional CORS middleware for temp-download route
 app.use('/api/files/temp-download', (req, res, next) => {

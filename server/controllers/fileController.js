@@ -76,77 +76,33 @@ exports.upload = upload;
 // UPLOAD FILE
 exports.uploadFile = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'No file uploaded' });
-        }
+        if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
 
-        req.file.originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+        // ✅ Fix tên file Tiếng Việt có dấu
+        const safeName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
-        
+        // ✅ Mã hóa dữ liệu
+        const encryptedData = fileEncryption.encrypt(req.file.buffer);
 
-        if (req.file.size === 0) {
-            return res.status(400).json({ success: false, message: 'Empty file not allowed' });
-        }
-
-        const User = require('../models/User');
-        const user = await User.findById(req.userId);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
-
-        //  MÃ HÓA DỮ LIỆU FILE
-        console.log(' Encrypting file before storage...');
-        const startTime = Date.now();
-        
-        // Đảm bảo sử dụng hàm encrypt từ utils/encryption.js đã có của bạn
-        const encryptedData = fileEncryption.encrypt(req.file.buffer); 
-        const encryptionTime = Date.now() - startTime;
-
-        // Tính toán dung lượng sau khi mã hóa (thường sẽ lớn hơn một chút do IV và Padding)
-        const newStorageUsed = user.storageUsed + encryptedData.length;
-
-        if (newStorageUsed > user.storageLimit) {
-            return res.status(413).json({
-                success: false,
-                message: `❌ Not enough storage space!`,
-                storageInfo: user.getStorageInfo()
-            });
-        }
-
-        // Tạo đối tượng file mới với dữ liệu ĐÃ MÃ HÓA
         const file = new File({
-            filename: req.file.originalname,
-            originalName: req.file.originalname,
-            data: encryptedData, // LƯU DỮ LIỆU ĐÃ MÃ HÓA
-            size: req.file.size, // Lưu kích thước gốc để hiển thị cho người dùng
+            filename: safeName,
+            originalName: safeName,
+            data: encryptedData,
+            size: req.file.size,
             mimeType: req.file.mimetype,
             owner: req.userId,
-            status: 'active',
-            encrypted: true      // Đánh dấu rõ ràng file đã được mã hóa
+            encrypted: true // Đánh dấu để giải mã
         });
 
         await file.save();
+        
+        // Cập nhật dung lượng user
+        const User = require('../models/User');
+        await User.findByIdAndUpdate(req.userId, { $inc: { storageUsed: encryptedData.length } });
 
-        // Cập nhật dung lượng người dùng dựa trên kích thước thực tế lưu trữ (encrypted size)
-        user.storageUsed = newStorageUsed;
-        await user.save();
-
-        console.log(`✅ File uploaded & Encrypted: ${file.originalName} (${encryptionTime}ms)`);
-
-        res.status(201).json({
-            success: true,
-            message: 'File uploaded successfully',
-            file: {
-                _id: file._id,
-                originalName: file.originalName,
-                size: file.size
-            },
-            storageInfo: user.getStorageInfo()
-        });
-
+        res.status(201).json({ success: true, file });
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ success: false, message: 'Error uploading file', error: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 // GET MY FILES
@@ -256,60 +212,29 @@ exports.getBinFiles = async (req, res) => {
 exports.downloadFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
+        if (!file) return res.status(404).send('File not found');
 
-        if (!file) {
-            return res.status(404).json({ success: false, message: 'File not found' });
-        }
-
-        const hasPermission = file.owner.toString() === req.userId ||
-                            file.sharedWith.includes(req.userId);
-
-        if (!hasPermission) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        // --- BẮT ĐẦU SỬA ---
         let fileData = file.data;
 
-        // 1. Ép kiểu về Buffer chuẩn (Quan trọng để tránh lỗi MongoDB Binary)
-        if (fileData && !Buffer.isBuffer(fileData)) {
-            // Nếu là MongoDB Binary object, chuyển nó về Buffer
-            if (fileData.buffer) {
-                fileData = fileData.buffer; 
-            } else {
-                fileData = Buffer.from(fileData);
-            }
+        // Ép kiểu Buffer nếu MongoDB trả về dạng Binary object
+        if (!Buffer.isBuffer(fileData)) {
+            fileData = fileData.buffer ? fileData.buffer : Buffer.from(fileData);
         }
 
-        // 2. Giải mã (Nếu file được đánh dấu là encrypted)
+        // ✅ Giải mã nếu file có flag encrypted
         if (file.encrypted) {
-            try {
-                console.log(` Decrypting file: ${file.originalName}`);
-                // Lúc này fileData chắc chắn là Buffer, decrypt sẽ không bị lỗi
-                fileData = fileEncryption.decrypt(fileData);
-            } catch (err) {
-                console.error('❌ Error decrypting file:', err.message);
-                // Nếu giải mã lỗi, trả về lỗi 500 để client biết thay vì gửi file rác
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Can not decrypt file. Key may not match.' 
-                });
-            }
+            fileData = fileEncryption.decrypt(fileData);
         }
-        
 
-        // Thiết lập header chuẩn
         res.set({
             'Content-Type': file.mimeType,
-            'Content-Length': fileData.length, // Độ dài sau khi giải mã
+            'Content-Length': fileData.length,
             'Content-Disposition': `attachment; filename="${encodeURIComponent(file.originalName)}"`
         });
-        
         res.send(fileData);
-
     } catch (error) {
-        console.error('Download error:', error);
-        res.status(500).json({ success: false, message: 'Error downloading file' });
+        console.error("Download error:", error);
+        res.status(500).send('Lỗi khi xử lý file');
     }
 };
 
@@ -444,45 +369,46 @@ exports.saveFile = async (req, res) => {
 
 // DELETE (move to bin)
 
+// DELETE: B xóa thì file vào thùng rác luôn (như A xóa)
 exports.deleteFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
+        if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-        if (!file) {
-            return res.status(404).json({ success: false, message: 'File not found' });
-        }
+        // Quyền: Chủ hoặc người được share
+        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
+        if (!hasPermission) return res.status(403).json({ success: false, message: 'No permission' });
 
-        const userId = req.userId;
-
-        // KIỂM TRA QUYỀN: Chỉ cần là Owner HOẶC được Share là có quyền Xóa
-        const hasPermission = file.owner.toString() === userId || 
-                              file.sharedWith.includes(userId);
-
-        if (!hasPermission) {
-            return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa file này' });
-        }
-
-        // THỰC HIỆN XÓA (Chuyển trạng thái sang bin)
-        
         file.status = 'bin';
         file.deletedAt = new Date();
-        
-        // (Tùy chọn) Lưu vết ai là người xóa
-         
-
         await file.save();
 
-        logAction(userId, 'FILE_MOVED_TO_BIN', {
-            fileId: file._id,
-            fileName: file.originalName,
-            deletedBy: userId
-        });
-
-        res.json({ success: true, message: 'Moving file into trash bin' });
-
+        res.json({ success: true, message: 'File moved to bin' });
     } catch (error) {
-        console.error('Delete error:', error);
-        res.status(500).json({ success: false, message: 'Error deleting file', error: error.message });
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// SHARE: B có thể share tiếp cho người khác
+exports.shareFile = async (req, res) => {
+    try {
+        const { userEmail } = req.body;
+        const file = await File.findById(req.params.id);
+        
+        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
+        if (!hasPermission) return res.status(403).json({ success: false, message: 'No permission' });
+
+        const User = require('../models/User');
+        const userToShare = await User.findOne({ email: userEmail });
+
+        if (userToShare && !file.sharedWith.includes(userToShare._id)) {
+            file.sharedWith.push(userToShare._id);
+            await file.save();
+        }
+
+        res.json({ success: true, message: 'Shared successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
