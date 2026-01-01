@@ -236,7 +236,7 @@ async function loadContent(view, subView = null) {
     }
 }
 
-// Display files - UPDATED: Remove Edit buttons, only View for supported files
+// ✅ UPDATED: Display files with FULL permissions for shared files
 function displayFiles(files, view, searchTerm = '') {
     const filesTableBody = document.getElementById('filesTableBody');
     const userId = localStorage.getItem('userId');
@@ -244,7 +244,7 @@ function displayFiles(files, view, searchTerm = '') {
     if (!files || files.length === 0) {
         const message = searchTerm 
             ? `🔍 Can not find results for "${searchTerm}"` 
-            : '📁 No files found';
+            : '📂 No files found';
         
         filesTableBody.innerHTML = `
             <tr>
@@ -293,8 +293,6 @@ function displayFiles(files, view, searchTerm = '') {
         return viewableTypes.includes(file.mimeType) || viewableExts.includes(ext);
     }
 
-    
-
     filesTableBody.innerHTML = files.map(file => {
         const isOwner = file.owner._id === userId || file.owner === userId;
         const canView = canViewFile(file);
@@ -302,6 +300,7 @@ function displayFiles(files, view, searchTerm = '') {
         let actions = '';
 
         if (view === 'myfiles') {
+            // My Files: Chủ sở hữu có đầy đủ quyền
             actions = `
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
@@ -317,9 +316,16 @@ function displayFiles(files, view, searchTerm = '') {
                 ` : ''}
             `;
         } else if (view === 'shared') {
+            // ✅ FIXED: Người được share có FULL quyền (Download, Share, Delete)
             actions = `
                 <button class="action-btn download-btn" onclick="downloadFile('${file._id}', '${file.originalName}')">
                     ⬇️ Download
+                </button>
+                <button class="action-btn share-btn" onclick="shareFile('${file._id}')">
+                    🔗 Share
+                </button>
+                <button class="action-btn delete-btn" onclick="deleteFile('${file._id}', '${file.originalName}')">
+                    🗑️ Delete
                 </button>
             `;
         } else if (view === 'bin') {

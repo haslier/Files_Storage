@@ -286,7 +286,7 @@ exports.viewFile = async (req, res) => {
 
         //  DECRYPT if encrypted
         if (file.encrypted) {
-            console.log(' Decrypting file for viewing...');
+            console.log('🔓 Decrypting file for viewing...');
             try {
                 fileData = fileEncryption.decrypt(file.data);
                 console.log('✅ File decrypted for viewing');
@@ -366,14 +366,13 @@ exports.saveFile = async (req, res) => {
 };
 
 // DELETE (move to bin)
-
-// DELETE: B xóa thì file vào thùng rác luôn (như A xóa)
+// ✅ DELETE: Cả owner và người được share đều có thể xóa (move to bin)
 exports.deleteFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
         if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
-        // Quyền: Chủ hoặc người được share
+        // ✅ Quyền: Chủ hoặc người được share đều có thể xóa
         const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
         if (!hasPermission) return res.status(403).json({ success: false, message: 'No permission' });
 
@@ -387,30 +386,8 @@ exports.deleteFile = async (req, res) => {
     }
 };
 
-// SHARE: B có thể share tiếp cho người khác
-exports.shareFile = async (req, res) => {
-    try {
-        const { userEmail } = req.body;
-        const file = await File.findById(req.params.id);
-        
-        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
-        if (!hasPermission) return res.status(403).json({ success: false, message: 'No permission' });
-
-        const User = require('../models/User');
-        const userToShare = await User.findOne({ email: userEmail });
-
-        if (userToShare && !file.sharedWith.includes(userToShare._id)) {
-            file.sharedWith.push(userToShare._id);
-            await file.save();
-        }
-
-        res.json({ success: true, message: 'Shared successfully' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // RESTORE
+// ✅ Cả owner và người được share đều có thể restore file
 exports.restoreFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
@@ -422,10 +399,12 @@ exports.restoreFile = async (req, res) => {
             });
         }
 
-        if (file.owner.toString() !== req.userId) {
+        // ✅ Cho phép cả owner và người được share restore
+        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
+        if (!hasPermission) {
             return res.status(403).json({
                 success: false,
-                message: 'Only owner can restore'
+                message: 'You do not have permission to restore this file'
             });
         }
 
@@ -449,6 +428,7 @@ exports.restoreFile = async (req, res) => {
 };
 
 // DELETE PERMANENTLY
+// ✅ Cả owner và người được share đều có thể xóa vĩnh viễn
 exports.deletePermanently = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
@@ -460,19 +440,21 @@ exports.deletePermanently = async (req, res) => {
             });
         }
 
-        if (file.owner.toString() !== req.userId) {
+        // ✅ Cho phép cả owner và người được share xóa vĩnh viễn
+        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
+        if (!hasPermission) {
             return res.status(403).json({
                 success: false,
-                message: 'Only owner can delete permanently'
+                message: 'You do not have permission to delete this file'
             });
         }
 
-        // Update user storage
+        // ⚠️ Lưu ý: Storage sẽ được trừ từ tài khoản OWNER (người sở hữu file)
         const User = require('../models/User');
-        const user = await User.findById(req.userId);
-        if (user) {
-            user.storageUsed = Math.max(0, user.storageUsed - file.size);
-            await user.save();
+        const owner = await User.findById(file.owner);
+        if (owner) {
+            owner.storageUsed = Math.max(0, owner.storageUsed - file.size);
+            await owner.save();
         }
 
         await File.findByIdAndDelete(req.params.id);
@@ -481,13 +463,15 @@ exports.deletePermanently = async (req, res) => {
             fileId: req.params.id,
             fileName: file.originalName,
             sizeFreed: file.size,
-            newStorageUsed: user?.storageUsed
+            deletedBy: req.userId,
+            fileOwner: file.owner,
+            newStorageUsed: owner?.storageUsed
         });
 
         res.json({
             success: true,
             message: 'File deleted permanently',
-            storageInfo: user ? user.getStorageInfo() : null
+            storageInfo: owner ? owner.getStorageInfo() : null
         });
 
     } catch (error) {
@@ -500,7 +484,7 @@ exports.deletePermanently = async (req, res) => {
     }
 };
 
-// SHARE FILE
+// ✅ SHARE FILE: Cả owner và người được share đều có thể share tiếp cho người khác
 exports.shareFile = async (req, res) => {
     try {
         const { userEmail } = req.body;
@@ -513,10 +497,12 @@ exports.shareFile = async (req, res) => {
             });
         }
 
-        if (file.owner.toString() !== req.userId) {
+        // ✅ Cho phép cả owner và người được share đều có thể share tiếp
+        const hasPermission = file.owner.toString() === req.userId || file.sharedWith.includes(req.userId);
+        if (!hasPermission) {
             return res.status(403).json({
                 success: false,
-                message: 'Only owner can share'
+                message: 'You do not have permission to share this file'
             });
         }
 
@@ -530,10 +516,24 @@ exports.shareFile = async (req, res) => {
             });
         }
 
-        if (!file.sharedWith.includes(userToShare._id)) {
-            file.sharedWith.push(userToShare._id);
-            await file.save();
+        // Kiểm tra không share cho chính mình
+        if (userToShare._id.toString() === req.userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot share file to yourself'
+            });
         }
+
+        // Kiểm tra đã share chưa
+        if (file.sharedWith.includes(userToShare._id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'File already shared with this user'
+            });
+        }
+
+        file.sharedWith.push(userToShare._id);
+        await file.save();
 
         res.json({
             success: true,
