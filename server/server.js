@@ -25,35 +25,35 @@ app.use(helmet({
 }));
 
 
-
-// ✅ Cấu hình CORS tối ưu để fix lỗi đỏ trên Render
+//  Cấu hình CORS chuẩn cho domain 
 const allowedOrigins = [
     'http://localhost:5500',
-    
-    'https://files-storage-2.onrender.com'
+    'http://127.0.0.1:5500',
+    'https://files-storage-2.onrender.com' // Domain Frontend chuẩn của bạn
 ];
 
 const corsOptions = {
     origin: function (origin, callback) {
         // Cho phép request không có origin hoặc nằm trong whitelist
-        if (!origin || allowedOrigins.includes(origin) || origin.includes('google.com') || origin.includes('officeapps.live.com')) {
+        if (!origin || allowedOrigins.includes(origin) || origin.includes('google.com')) {
             callback(null, true);
         } else {
-            console.log("CORS blocked origin:", origin);
+            console.error("🚫 CORS blocked origin:", origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Range'],
-    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'Range'],
     optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // 🔥 BẮT BUỘC có dòng này để fix lỗi Preflight (OPTIONS)
 
-// ✅ Additional CORS middleware for temp-download route
+app.options('*', cors(corsOptions));
+
+
+//  Additional CORS middleware for temp-download route
 app.use('/api/files/temp-download', (req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');

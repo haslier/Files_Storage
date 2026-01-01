@@ -208,20 +208,20 @@ exports.getBinFiles = async (req, res) => {
     }
 };
 
-
+// dowload file
 exports.downloadFile = async (req, res) => {
     try {
         const file = await File.findById(req.params.id);
-        if (!file) return res.status(404).send('File not found');
+        if (!file) return res.status(404).json({ success: false, message: 'File not found' });
 
         let fileData = file.data;
 
-        // Ép kiểu Buffer nếu MongoDB trả về dạng Binary object
-        if (!Buffer.isBuffer(fileData)) {
+        // ✅ Bắt buộc ép kiểu Buffer để xử lý dữ liệu Binary từ MongoDB
+        if (fileData && !Buffer.isBuffer(fileData)) {
             fileData = fileData.buffer ? fileData.buffer : Buffer.from(fileData);
         }
 
-        // ✅ Giải mã nếu file có flag encrypted
+        // ✅ Giải mã AES nếu file được đánh dấu encrypted
         if (file.encrypted) {
             fileData = fileEncryption.decrypt(fileData);
         }
@@ -233,11 +233,9 @@ exports.downloadFile = async (req, res) => {
         });
         res.send(fileData);
     } catch (error) {
-        console.error("Download error:", error);
-        res.status(500).send('Lỗi khi xử lý file');
+        res.status(500).json({ success: false, message: 'Download error' });
     }
 };
-
 // VIEW FILE
 exports.viewFile = async (req, res) => {
     try {
