@@ -29,7 +29,7 @@ app.use(helmet({
 // ✅ Cấu hình CORS tối ưu để fix lỗi đỏ trên Render
 const allowedOrigins = [
     'http://localhost:5500',
-    'http://127.0.0.1:5500',
+    
     'https://files-storage-2.onrender.com'
 ];
 
