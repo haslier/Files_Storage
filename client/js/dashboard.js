@@ -1,7 +1,7 @@
 // ✅ API Config - Auto-detect production or local
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5500/api'
-    : 'https://files-storage-c4s8.onrender.com/api';
+    : 'https://files-storage-2.onrender.com/api';
 
 console.log('🌐 Environment:', window.location.hostname);
 console.log('🔗 API URL:', API_URL);
